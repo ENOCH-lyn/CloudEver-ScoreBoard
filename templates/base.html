@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title or 'CTF 战队考核系统' }}</title>
+  <style>
+    /* Light theme - Google-like, airy UI */
+    :root{
+      --bg:#f6f7fb;        /* page background */
+      --surface:#ffffff;    /* cards/nav surfaces */
+      --border:#e7e8ee;     /* hairline borders */
+      --text:#1f2937;       /* primary text */
+      --muted:#6b7280;      /* secondary text */
+      --accent:#1a73e8;     /* Google blue */
+      --accent-2:#185abc;   /* darker blue */
+      --success:#16a34a;    /* status ok */
+      --warn:#e11d48;       /* destructive */
+      --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.1);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans SC', Arial;
+      margin:0; color:var(--text); background:var(--bg);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      display:flex; align-items:center; gap:16px; padding:12px 20px;
+      background:var(--surface);
+      border-bottom:1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .brand{font-weight:800; letter-spacing:.3px}
+    .brand b{color:var(--text)}
+    .brand small{color:var(--muted); font-weight:600}
+  .nav a{margin-right:8px; color:#334155; text-decoration:none; font-weight:600; padding:8px 10px; border-radius:8px}
+    .nav a:hover{background:#eef2ff; color:#1e293b}
+    .nav a.active{color:#1e293b; border-bottom:2px solid var(--accent)}
+
+    .wrap{max-width:1100px; margin:0 auto; padding:24px 22px}
+
+    .card{
+      position:relative; margin:14px 0; padding:18px 18px;
+      background:var(--surface);
+      border:1px solid var(--border); border-radius:14px; box-shadow: var(--shadow);
+    }
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px}
+    .muted{color:var(--muted)}
+    .kpi{font-weight:800; font-size:28px; letter-spacing:.5px}
+    .pill{padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:#f2f4f8}
+
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      background:var(--accent);
+      color:#fff; font-weight:700; border:1px solid var(--accent-2); padding:10px 14px; border-radius:10px; cursor:pointer}
+    .btn.secondary{background:#f1f5ff; color:#1e3a8a; border:1px solid #c7d2fe}
+    .btn.warn{background:var(--warn); color:#fff; border-color:#be123c}
+
+    input,select,textarea{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
+      background:#fff; color:var(--text)
+    }
+    input:focus,select:focus,textarea:focus{outline:none; border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,.35)}
+    label{font-weight:700; font-size:13px; color:#334155}
+
+    input[type=file]{
+      border:1px dashed #cbd5e1; padding:12px; background:#f8fafc; color:#334155
+    }
+
+    table{width:100%; border-collapse:separate; border-spacing:0; background:#fff}
+    thead th{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#6b7280}
+    th,td{padding:10px 10px; border-bottom:1px solid var(--border); text-align:left}
+    tbody tr:hover{background:#f9fafb}
+
+    .status{font-size:12px; padding:2px 6px; border-radius:999px; border:1px solid var(--border)}
+    .pending{background:#f1f5f9}
+    .ok{background:#ecfdf5; border-color:#bbf7d0}
+    .rev{background:#fef2f2; border-color:#fecaca}
+
+    .md{background:#f8fafc; padding:12px; border-radius:12px; border:1px solid var(--border); overflow-x:auto}
+    .md pre{background:#f1f5f9; padding:10px; border-radius:8px}
+    .md code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace}
+
+    .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
+    .user-menu{position:relative}
+    .user-trigger{display:flex; align-items:center; gap:8px; padding:6px; border-radius:999px; cursor:pointer}
+    .user-trigger:hover{background:#eef2ff}
+    .menu{position:absolute; right:0; top:46px; min-width:160px; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); display:none}
+    .menu a, .menu form button{display:block; width:100%; text-align:left; padding:10px 12px; color:#334155; text-decoration:none; background:transparent; border:none; cursor:pointer}
+    .menu a:hover, .menu form button:hover{background:#f1f5ff}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">CloudEver <small>ScoreBoard</small></div>
+    <div class="nav">
+      <a href="/">排行榜</a>
+      <a href="/rules">战队规则</a>
+      <a href="/submit">提交成绩</a>
+      {% if current_user and current_user.role == 'admin' %}
+        <a href="/admin/review">审核</a>
+        <a href="/admin/events">活动</a>
+        <a href="/admin/users">成员</a>
+      {% endif %}
+    </div>
+    <div style="margin-left:auto">
+      {% if current_user %}
+        <div class="user-menu" id="userMenu">
+          <div class="user-trigger" id="userTrigger">
+            {% if avatar_url %}<img class="avatar" src="{{ avatar_url }}" alt="avatar" />{% endif %}
+            <span class="muted" style="font-weight:600">{{ current_user.username }}</span>
+          </div>
+          <div class="menu" id="userDropdown">
+            <div style="padding:8px 12px; color:#6b7280; font-size:12px;">{{ '主队' if current_user.team_type=='main' else '子队' }}</div>
+            <a href="/profile">个人设置</a>
+            <form action="/auth/logout" method="post"><button type="submit">退出登录</button></form>
+          </div>
+        </div>
+      {% else %}
+        <a class="btn secondary" href="/auth/login">登录</a>
+        <a class="btn" style="margin-left:8px" href="/auth/register">注册</a>
+      {% endif %}
+    </div>
+  </header>
+  <div class="wrap">
+    {% if msg %}<div class="card">{{ msg }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+  <script>
+    // 使用频度：给常用链接加权重视觉提示
+    const navLinks = document.querySelectorAll('header .nav a');
+    navLinks.forEach(a => {
+      a.addEventListener('click', () => {
+        const k = 'usage:' + a.getAttribute('href');
+        const n = parseInt(localStorage.getItem(k) || '0') + 1;
+        localStorage.setItem(k, n.toString());
+      });
+      const k = 'usage:' + a.getAttribute('href');
+      const n = parseInt(localStorage.getItem(k) || '0');
+      if (n > 5) a.classList.add('active');
+    });
+    // Avatar dropdown
+    const trigger = document.getElementById('userTrigger');
+    const dropdown = document.getElementById('userDropdown');
+    if (trigger && dropdown){
+      trigger.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+      });
+      document.addEventListener('click', ()=>{ dropdown.style.display='none'; });
+    }
+  </script>
+</body>
+</html>

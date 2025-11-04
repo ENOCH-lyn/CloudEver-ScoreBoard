@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>审核中心</h2>
+  <div class="row">
+    <form class="row" method="get" action="/admin/review">
+      <label>活动</label>
+      <select name="event_id" style="max-width:220px">
+        <option value="">全部</option>
+        {% for e in events %}
+          <option value="{{ e.id }}" {% if e.id == event_id %}selected{% endif %}>{{ e.name }}</option>
+        {% endfor %}
+      </select>
+      <label>成员</label>
+      <input name="q" placeholder="用户名包含..." value="{{ q or '' }}" style="max-width:220px" />
+      <button class="btn" type="submit">筛选</button>
+    </form>
+    {% if event_id %}
+      <form method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
+        <button class="btn secondary" type="submit">通过该活动全部待审</button>
+      </form>
+    {% endif %}
+  </div>
+  <p class="muted">显示所有提交记录（含已审核），可进入复审并切换通过/撤销状态。</p>
+  <table>
+    <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>待审</th><th>已计分</th><th>被撤销</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.created_at }}</td>
+        <td>{{ r.username }}</td>
+        <td>{{ r.event_name }}</td>
+        <td>{{ r.pending }}</td>
+        <td>{{ r.ok }}</td>
+        <td>{{ r.rev }}</td>
+        <td><a class="btn secondary" href="/admin/review/{{ r.sub_id }}">查看</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="muted">暂无提交</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

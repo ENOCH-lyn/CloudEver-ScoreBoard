@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>成员：{{ user.username }} <span class="pill">{{ '主队' if user.team_type=='main' else '子队' }}</span></h2>
+  <p class="muted">{{ year }} 年 {{ month }} 月 — 本月通过题数：<b>{{ month_count }}</b>；累计通过题数：<b>{{ total_count }}</b></p>
+</div>
+
+<div class="card">
+  <h3>本月提交明细</h3>
+  <table>
+    <thead><tr><th>时间</th><th>活动</th><th>已通过</th><th>待审</th><th>被撤销</th><th>WP</th></tr></thead>
+    <tbody>
+    {% for row in details %}
+      <tr>
+        <td>{{ row.created_at }}</td>
+        <td>{{ row.event_name }}</td>
+        <td>{{ row.count_ok }}</td>
+        <td>{{ row.count_pending }}</td>
+        <td>{{ row.count_revoked }}</td>
+        <td>
+          {% if row.wp_url %}<a href="{{ row.wp_url }}" target="_blank">链接</a>{% endif %}
+          {% if row.sub_id %}<a style="margin-left:8px" href="/submission/{{ row.sub_id }}">详情</a>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">本月暂无提交</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

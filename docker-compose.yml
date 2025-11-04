@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    container_name: cloudover-scoreboard
+    ports:
+      - "8000:8000"
+    environment:
+      - SESSION_SECRET=${SESSION_SECRET:-change-me}
+      - DATA_DIR=/app/data
+      - IMAGE_DIR=/app/images
+    volumes:
+      - ./data:/app/data
+      - ./images:/app/images
+    restart: unless-stopped

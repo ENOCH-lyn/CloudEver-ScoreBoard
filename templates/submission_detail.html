@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>提交详情 #{{ sub.id }} · {{ user.username }} · {{ event.name }}</h2>
+  <p class="muted">
+    提交时间：{{ sub.created_at }}
+    {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank">{{ sub.wp_url }}</a>{% endif %}
+  </p>
+</div>
+
+{% if wp_html %}
+<div class="card">
+  <h3>解题报告（Markdown 渲染）</h3>
+  <div class="md">{{ wp_html|safe }}</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>题目条目</h3>
+  <table>
+    <thead><tr><th>#</th><th>类别</th><th>题目</th><th>基础分</th><th>状态</th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ it.challenge.category }}</td>
+        <td>{{ it.challenge.name }}</td>
+        <td>{{ it.challenge.base_score }}</td>
+        <td>
+          {% if not it.approved %}<span class="status pending">待审</span>
+          {% elif it.revoked %}<span class="status rev">已撤销</span>
+          {% else %}<span class="status ok">已计分</span>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">无</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

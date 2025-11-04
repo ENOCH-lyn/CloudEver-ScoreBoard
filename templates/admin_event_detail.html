@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>活动详情 — {{ event.name }}</h2>
+  <p class="muted">在此可按照成员查看该活动的提交情况，进入相应提交可进行审核/撤销操作。</p>
+  <table>
+    <thead><tr><th>成员</th><th>已计分</th><th>待审</th><th>被撤销</th><th>提交数</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="/admin/users/{{ r.user.id }}">{{ r.user.username }}</a></td>
+        <td>{{ r.approved }}</td>
+        <td>{{ r.pending }}</td>
+        <td>{{ r.revoked }}</td>
+        <td>{{ r.subs|length }}</td>
+        <td>
+          {% for s in r.subs %}
+            <a class="btn secondary" href="/admin/review/{{ s.id }}">提交#{{ s.id }}</a>
+          {% endfor %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">暂无数据</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>成员管理</h2>
+  <table>
+  <thead><tr><th>用户名</th><th>角色</th><th>队伍</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+  <td><a href="/admin/users/{{ u.id }}">{{ u.username }}</a></td>
+        <td>{{ u.role }}</td>
+        <td>{{ u.team_type }}</td>
+        <td>
+          <form method="post" action="/admin/users/{{ u.id }}/update" class="row">
+            <select name="role">
+              <option value="member" {% if u.role=='member' %}selected{% endif %}>member</option>
+              <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
+            </select>
+            <select name="team_type">
+              <option value="main" {% if u.team_type=='main' %}selected{% endif %}>main(主队)</option>
+              <option value="sub" {% if u.team_type=='sub' %}selected{% endif %}>sub(子队)</option>
+            </select>
+            <button class="btn secondary" type="submit">保存</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">暂无成员</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

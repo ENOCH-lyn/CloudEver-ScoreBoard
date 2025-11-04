@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>活动管理</h2>
+  <table>
+    <thead><tr><th>名称</th><th>权重</th><th>类型</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+  <td><a href="/admin/events/{{ e.id }}">{{ e.name }}</a></td>
+        <td>{{ e.weight }}</td>
+        <td>{% if e.is_reproduction %}复现{% else %}CTF{% endif %}</td>
+        <td>{{ e.start_time }} → {{ e.end_time }}</td>
+        <td>{{ '启用' if e.is_active else '停用' }}</td>
+        <td class="row">
+          <a class="btn secondary" href="/admin/events/{{ e.id }}/challenges">题目</a>
+          <a class="btn secondary" href="/admin/events/{{ e.id }}/edit">编辑</a>
+          <form method="post" action="/admin/events/{{ e.id }}/toggle_active" style="display:inline">
+            <button class="btn secondary" type="submit">{{ '停用' if e.is_active else '启用' }}</button>
+          </form>
+          <form method="post" action="/admin/events/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('删除活动将不可恢复，且若存在提交将被禁止删除。确认？');">
+            <button class="btn warn" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">暂无活动</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>新建活动</h3>
+  <form method="post" action="/admin/events/create">
+    <label>名称</label>
+    <input name="name" required />
+    <label>开始时间</label>
+    <div class="row">
+      <input id="start" name="start" type="datetime-local" style="max-width:260px" />
+      <button class="btn secondary" type="button" onclick="document.getElementById('start').showPicker && document.getElementById('start').showPicker()">选择开始时间</button>
+    </div>
+    <label>结束时间</label>
+    <div class="row">
+      <input id="end" name="end" type="datetime-local" style="max-width:260px" />
+      <button class="btn secondary" type="button" onclick="document.getElementById('end').showPicker && document.getElementById('end').showPicker()">选择结束时间</button>
+    </div>
+    <label>活动权重</label>
+    <input name="weight" value="1.0" />
+    <label>类型</label>
+    <select name="is_reproduction">
+      <option value="0">CTF</option>
+      <option value="1">复现</option>
+    </select>
+    <div style="margin-top:12px"><button class="btn" type="submit">创建</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>按月清空提交</h3>
+  <form method="post" action="/admin/reset_month" class="row">
+    <label>年份</label><input style="max-width:120px" name="year" value="{{ year }}" />
+    <label>月份</label><input style="max-width:80px" name="month" value="{{ month }}" />
+    <button class="btn warn" type="submit">清空该月</button>
+  </form>
+  <p class="muted">此操作将删除该月份内的所有提交（不可恢复）。</p>
+</div>
+{% endblock %}

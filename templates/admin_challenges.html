@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>题目管理 — {{ event.name }}</h2>
+  <form class="row" method="get" action="/admin/events/{{ event.id }}/challenges">
+    <label>类别</label>
+    <select name="cat" style="max-width:180px">
+      <option value="">全部</option>
+      {% for c in categories %}<option value="{{ c }}" {% if cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <label>搜索</label>
+    <input name="q" value="{{ q or '' }}" placeholder="题目名包含..." style="max-width:220px" />
+    <button class="btn" type="submit">筛选</button>
+  </form>
+  <table>
+    <thead><tr><th>题目名</th><th>类别</th><th>基础分</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for ch in challenges %}
+      <tr>
+        <td>{{ ch.name }}</td>
+        <td>{{ ch.category }}</td>
+        <td>{{ ch.base_score }}</td>
+        <td>
+          <form method="post" action="/admin/events/{{ event.id }}/challenges/{{ ch.id }}/delete" style="display:inline" onsubmit="return confirm('确定删除【{{ ch.name }}】？此操作不可恢复');">
+            <button class="btn warn" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">暂无题目</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>新增题目</h3>
+  <form method="post" action="/admin/events/{{ event.id }}/challenges/add">
+    <label>题目名</label>
+    <input name="name" required />
+    <label>类别</label>
+    <select name="category">
+      {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+    </select>
+    <label>基础分</label>
+    <input name="base_score" value="100" />
+    <div style="margin-top:12px"><button class="btn" type="submit">添加</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>注册新成员</h2>
+  <form method="post">
+    <label>用户名</label>
+    <input name="username" required />
+    <label>密码</label>
+    <input name="password" type="password" required />
+    <label>确认密码</label>
+    <input name="password2" type="password" required />
+    <p class="muted">注册默认加入 <b>子队</b>，管理员可在后台将你调整到主队。</p>
+    <div style="margin-top:12px"><button class="btn" type="submit">注册</button></div>
+  </form>
+</div>
+{% endblock %}

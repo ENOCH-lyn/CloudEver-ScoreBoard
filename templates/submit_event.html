@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>提交成绩 — {{ event.name }}</h2>
+  <form method="post">
+    <label>已解题目（由管理员预设）</label>
+    {% for ch in challenges %}
+      <div>
+        <label>
+          <input type="checkbox" name="ch_{{ ch.id }}" />
+          [{{ ch.category }}] {{ ch.name }} — 基础分 {{ ch.base_score }}
+        </label>
+      </div>
+    {% else %}
+      <p class="muted">该活动尚未配置题目</p>
+    {% endfor %}
+
+    <label style="margin-top:12px">WP 链接（可选）</label>
+    <input name="wp_url" placeholder="https://..." />
+
+    <label style="margin-top:12px">WP Markdown（可选）</label>
+    <textarea name="wp_md" rows="8" placeholder="# 我的解题报告
+..."></textarea>
+
+    <div style="margin-top:12px"><button class="btn" type="submit">提交</button></div>
+  </form>
+</div>
+{% endblock %}

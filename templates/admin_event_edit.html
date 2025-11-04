@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>编辑活动</h2>
+  <form method="post" action="/admin/events/{{ event.id }}/edit">
+    <label>名称</label>
+    <input name="name" value="{{ event.name }}" required />
+
+    <label>开始时间</label>
+    <div class="row">
+      <input id="start" name="start" type="datetime-local" value="{{ event.start_time.strftime('%Y-%m-%dT%H:%M') if event.start_time }}" style="max-width:260px" />
+      <button class="btn secondary" type="button" onclick="document.getElementById('start').showPicker && document.getElementById('start').showPicker()">选择开始时间</button>
+    </div>
+
+    <label>结束时间</label>
+    <div class="row">
+      <input id="end" name="end" type="datetime-local" value="{{ event.end_time.strftime('%Y-%m-%dT%H:%M') if event.end_time }}" style="max-width:260px" />
+      <button class="btn secondary" type="button" onclick="document.getElementById('end').showPicker && document.getElementById('end').showPicker()">选择结束时间</button>
+    </div>
+
+    <label>活动权重</label>
+    <input name="weight" value="{{ '%.2f'|format(event.weight or 1.0) }}" />
+
+    <label>类型</label>
+    <select name="is_reproduction">
+      <option value="0" {% if not event.is_reproduction %}selected{% endif %}>CTF</option>
+      <option value="1" {% if event.is_reproduction %}selected{% endif %}>复现</option>
+    </select>
+
+    <div style="margin-top:12px" class="row">
+      <button class="btn" type="submit">保存</button>
+      <a class="btn secondary" href="/admin/events">返回</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
