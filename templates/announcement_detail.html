@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>{{ ann.title }}</h2>
+  <div class="md">{{ content_html|safe }}</div>
+  <p class="muted" style="margin-top:8px">发布时间：{{ ann.created_at }}，最后更新：{{ ann.updated_at }}</p>
+</div>
+{% endblock %}

@@ -11,17 +11,27 @@
         <td>{{ u.role }}</td>
         <td>{{ u.team_type }}</td>
         <td>
-          <form method="post" action="/admin/users/{{ u.id }}/update" class="row">
-            <select name="role">
-              <option value="member" {% if u.role=='member' %}selected{% endif %}>member</option>
-              <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
-            </select>
-            <select name="team_type">
-              <option value="main" {% if u.team_type=='main' %}selected{% endif %}>main(主队)</option>
-              <option value="sub" {% if u.team_type=='sub' %}selected{% endif %}>sub(子队)</option>
-            </select>
-            <button class="btn secondary" type="submit">保存</button>
-          </form>
+          {% if current_user.role == 'admin' %}
+          <div class="row" style="align-items:center; gap:10px; flex-wrap:nowrap; white-space:nowrap">
+            <form method="post" action="/admin/users/{{ u.id }}/update" class="row" style="align-items:center; gap:8px">
+              <select name="role" style="width:auto; min-width:120px">
+                <option value="member" {% if u.role=='member' %}selected{% endif %}>member</option>
+                <option value="reviewer" {% if u.role=='reviewer' %}selected{% endif %}>reviewer</option>
+                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
+              </select>
+              <select name="team_type" style="width:auto; min-width:120px">
+                <option value="main" {% if u.team_type=='main' %}selected{% endif %}>main(主队)</option>
+                <option value="sub" {% if u.team_type=='sub' %}selected{% endif %}>sub(子队)</option>
+              </select>
+              <button class="btn secondary" type="submit">保存</button>
+            </form>
+            <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('确认将该成员移入垃圾箱？');">
+              <button class="btn warn" type="submit">删除</button>
+            </form>
+          </div>
+          {% else %}
+          <span class="muted">只读</span>
+          {% endif %}
         </td>
       </tr>
     {% else %}

@@ -9,16 +9,15 @@
       <tr>
   <td><a href="/admin/events/{{ e.id }}">{{ e.name }}</a></td>
         <td>{{ e.weight }}</td>
-        <td>{% if e.is_reproduction %}复现{% else %}CTF{% endif %}</td>
+        <td>{{ e.event_type.name if e.event_type else ( '复现' if e.is_reproduction else 'CTF' ) }}</td>
         <td>{{ e.start_time }} → {{ e.end_time }}</td>
         <td>{{ '启用' if e.is_active else '停用' }}</td>
         <td class="row">
           <a class="btn secondary" href="/admin/events/{{ e.id }}/challenges">题目</a>
           <a class="btn secondary" href="/admin/events/{{ e.id }}/edit">编辑</a>
-          <form method="post" action="/admin/events/{{ e.id }}/toggle_active" style="display:inline">
-            <button class="btn secondary" type="submit">{{ '停用' if e.is_active else '启用' }}</button>
-          </form>
-          <form method="post" action="/admin/events/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('删除活动将不可恢复，且若存在提交将被禁止删除。确认？');">
+          <form id="evt_toggle_{{ e.id }}" method="post" action="/admin/events/{{ e.id }}/toggle_active" style="display:none"></form>
+          <a class="btn secondary" href="#" onclick="document.getElementById('evt_toggle_{{ e.id }}').submit(); return false;">{{ '停用' if e.is_active else '启用' }}</a>
+          <form method="post" action="/admin/events/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('移入垃圾箱？可在垃圾箱中恢复或彻底删除');">
             <button class="btn warn" type="submit">删除</button>
           </form>
         </td>
@@ -48,9 +47,10 @@
     <label>活动权重</label>
     <input name="weight" value="1.0" />
     <label>类型</label>
-    <select name="is_reproduction">
-      <option value="0">CTF</option>
-      <option value="1">复现</option>
+    <select name="event_type_id">
+      {% for t in types %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
     </select>
     <div style="margin-top:12px"><button class="btn" type="submit">创建</button></div>
   </form>

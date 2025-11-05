@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+<div class="grid">
+  <div class="card">
+    <h2>成员（垃圾箱）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>用户名</th><th>队伍</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for u in trashed_users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.username }}</td>
+          <td>{{ u.team_type }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/user/{{ u.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/user/{{ u.id }}/purge" onsubmit="return confirm('彻底删除该用户及其所有提交？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>提交（垃圾箱）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>成员</th><th>活动</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for s in trashed_subs %}
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.user.username if s.user else '—' }}</td>
+          <td>{{ s.event.name if s.event else '—' }}</td>
+          <td>{{ s.created_at }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/submission/{{ s.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/submission/{{ s.id }}/purge" onsubmit="return confirm('彻底删除？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>活动（垃圾箱）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>名称</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for e in trashed_events %}
+        <tr>
+          <td>{{ e.id }}</td>
+          <td>{{ e.name }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/event/{{ e.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/event/{{ e.id }}/purge" onsubmit="return confirm('彻底删除？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>题目（垃圾箱）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>题目</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for c in trashed_challenges %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.name }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/challenge/{{ c.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/challenge/{{ c.id }}/purge" onsubmit="return confirm('彻底删除？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>公告（垃圾箱）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>标题</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for a in trashed_anns %}
+        <tr>
+          <td>{{ a.id }}</td>
+          <td>{{ a.title }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/announcement/{{ a.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/announcement/{{ a.id }}/purge" onsubmit="return confirm('彻底删除？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+    </main>
+</div>
+{% endblock %}

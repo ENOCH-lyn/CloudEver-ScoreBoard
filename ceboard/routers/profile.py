@@ -55,3 +55,11 @@ async def upload_avatar(request: Request, file: UploadFile = File(...), db = Dep
     current_user.avatar_filename = safe_name
     db.add(current_user); db.commit()
     return RedirectResponse("/profile?msg=头像已更新", status_code=302)
+
+
+@router.post("/profile/avatar/clear")
+def clear_avatar(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_login(current_user)
+    current_user.avatar_filename = None
+    db.add(current_user); db.commit()
+    return RedirectResponse("/profile?msg=头像已清除", status_code=302)

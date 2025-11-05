@@ -66,6 +66,9 @@
       background:#fff; color:var(--text)
     }
     input:focus,select:focus,textarea:focus{outline:none; border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,.35)}
+    /* Remove harsh blue ring for checkbox/radio focus while keeping accessibility */
+    input[type=checkbox], input[type=radio]{ width:auto }
+    input[type=checkbox]:focus, input[type=radio]:focus{ outline:none; box-shadow:none; }
     label{font-weight:700; font-size:13px; color:#334155}
 
     input[type=file]{
@@ -93,6 +96,10 @@
     .menu{position:absolute; right:0; top:46px; min-width:160px; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); display:none}
     .menu a, .menu form button{display:block; width:100%; text-align:left; padding:10px 12px; color:#334155; text-decoration:none; background:transparent; border:none; cursor:pointer}
     .menu a:hover, .menu form button:hover{background:#f1f5ff}
+  /* Side nav for advanced admin */
+  .side-nav{display:flex; flex-direction:column}
+  .side-nav a{padding:12px 16px; border-bottom:1px solid var(--border); color:#334155; text-decoration:none}
+  .side-nav a:hover{background:#f8fafc}
   </style>
 </head>
 <body>
@@ -102,9 +109,11 @@
   <a href="/">积分榜</a>
       <a href="/rules">战队规则</a>
       <a href="/submit">提交成绩</a>
-      {% if current_user and current_user.role == 'admin' %}
+      {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
         <a href="/admin/review">审核</a>
         <a href="/admin/events">活动</a>
+      {% endif %}
+      {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
         <a href="/admin/users">成员</a>
       {% endif %}
     </div>
@@ -117,6 +126,9 @@
           </div>
           <div class="menu" id="userDropdown">
             <div style="padding:8px 12px; color:#6b7280; font-size:12px;">{{ '主队' if current_user.team_type=='main' else '子队' }}</div>
+            {% if current_user.role == 'admin' %}
+              <a href="/admin/advanced">管理员面板</a>
+            {% endif %}
             <a href="/profile">个人设置</a>
             <form action="/auth/logout" method="post"><button type="submit">退出登录</button></form>
           </div>

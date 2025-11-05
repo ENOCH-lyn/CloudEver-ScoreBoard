@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+<div class="card">
+  <h2>编辑战队规则</h2>
+  <p class="muted">使用 Markdown 编写；对所有成员可见。</p>
+  <form method="post" action="/admin/rules">
+    <textarea name="rules_md" rows="18" placeholder="# 战队规则
+...">{{ rules_md }}</textarea>
+    <div style="margin-top:12px"><button class="btn" type="submit">保存</button></div>
+  </form>
+</div>
+  </main>
+</div>
+{% endblock %}

@@ -53,6 +53,12 @@ def require_admin(user: Optional[User]):
         raise HTTPException(status_code=403, detail="需要管理员权限")
 
 
+def require_admin_or_reviewer(user: Optional[User]):
+    require_login(user)
+    if user.role not in ("admin", "reviewer"):
+        raise HTTPException(status_code=403, detail="需要审核员或管理员权限")
+
+
 async def await_form(request: Request) -> Dict[str, str]:
     form = await request.form()
     return {k: (v if isinstance(v, str) else getattr(v, 'filename', str(v))) for k, v in form.items()}

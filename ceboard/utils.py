@@ -24,8 +24,18 @@ def month_range(year: int, month: int):
 
 
 def compute_submission_points(sub: Submission) -> float:
+    """Return points for a submission.
+    If manual_points is set, use it directly (already considered by reviewer);
+    otherwise sum approved, not-revoked items' base_score and multiply by event weight.
+    """
     if not sub.event:
         return 0.0
+    # manual override takes precedence
+    if getattr(sub, 'manual_points', None) is not None:
+        try:
+            return float(sub.manual_points)
+        except Exception:
+            return 0.0
     total = 0.0
     for it in sub.items:
         ch = it.challenge
@@ -35,14 +45,16 @@ def compute_submission_points(sub: Submission) -> float:
 
 
 def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> List[Dict[str, float]]:
-    from .models import Submission, User
+    from .models import Submission, User, PointAdjustment
     start, end = month_range(year, month)
 
     subs_month = (
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
         .filter(User.team_type == team_type)
-        .filter(User.role != 'admin')
+        .filter(User.role == 'member')
+        .filter(User.is_deleted == False)
+        .filter(Submission.is_deleted == False)
         .filter(Submission.created_at >= start, Submission.created_at < end)
         .all()
     )
@@ -50,7 +62,9 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
         .filter(User.team_type == team_type)
-        .filter(User.role != 'admin')
+        .filter(User.role == 'member')
+        .filter(User.is_deleted == False)
+        .filter(Submission.is_deleted == False)
         .all()
     )
 
@@ -69,6 +83,35 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
         total_by_user[s.user_id] = total_by_user.get(s.user_id, 0.0) + pts
         if s.user_id not in names:
             u = db.get(User, s.user_id); names[s.user_id] = u.username if u else f"uid:{s.user_id}"
+
+    # apply monthly adjustments
+    adjs_month = (
+        db.query(PointAdjustment)
+        .join(User, PointAdjustment.user_id == User.id)
+        .filter(User.team_type == team_type)
+        .filter(User.role == 'member')
+        .filter(PointAdjustment.is_deleted == False)
+        .filter(PointAdjustment.year == year, PointAdjustment.month == month)
+        .all()
+    )
+    for a in adjs_month:
+        month_by_user[a.user_id] = month_by_user.get(a.user_id, 0.0) + float(a.amount)
+        if a.user_id not in names:
+            u = db.get(User, a.user_id); names[a.user_id] = u.username if u else f"uid:{a.user_id}"
+
+    # total adjustments across all months contribute to total_points
+    adjs_total = (
+        db.query(PointAdjustment)
+        .join(User, PointAdjustment.user_id == User.id)
+        .filter(User.team_type == team_type)
+        .filter(User.role == 'member')
+        .filter(PointAdjustment.is_deleted == False)
+        .all()
+    )
+    for a in adjs_total:
+        total_by_user[a.user_id] = total_by_user.get(a.user_id, 0.0) + float(a.amount)
+        if a.user_id not in names:
+            u = db.get(User, a.user_id); names[a.user_id] = u.username if u else f"uid:{a.user_id}"
 
     user_ids = set(names.keys()) | set(month_by_user.keys()) | set(total_by_user.keys())
     rows = [
@@ -93,7 +136,9 @@ def leaderboard_count_approved(db, year: int, month: int, team_type: str) -> Lis
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
         .filter(User.team_type == team_type)
-        .filter(User.role != 'admin')
+        .filter(User.role == 'member')
+        .filter(User.is_deleted == False)
+        .filter(Submission.is_deleted == False)
         .filter(Submission.created_at >= start, Submission.created_at < end)
         .all()
     )
@@ -101,7 +146,9 @@ def leaderboard_count_approved(db, year: int, month: int, team_type: str) -> Lis
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
         .filter(User.team_type == team_type)
-        .filter(User.role != 'admin')
+        .filter(User.role == 'member')
+        .filter(User.is_deleted == False)
+        .filter(Submission.is_deleted == False)
         .all()
     )
 

@@ -29,6 +29,11 @@
       </div>
       <div style="margin-top:12px"><button class="btn" type="submit">上传头像</button></div>
     </form>
+    {% if avatar_url %}
+    <form method="post" action="/profile/avatar/clear" style="margin-top:12px" onsubmit="return confirm('确定清除当前头像？');">
+      <button class="btn secondary" type="submit">清除头像</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 <script>

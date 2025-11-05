@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from ..deps import get_db, get_current_user, render_template
-from ..models import Event, Submission, SubmissionItem, User
+from ..models import Event, Submission, SubmissionItem, User, Announcement, Setting
 from ..utils import leaderboard_month_and_total, md_to_html, compute_submission_points
 from ..config import TZ
 
@@ -22,7 +22,13 @@ def index(request: Request, year: Optional[int] = None, month: Optional[int] = N
     main_rows = leaderboard_month_and_total(db, year, month, team_type="main")
     sub_rows = leaderboard_month_and_total(db, year, month, team_type="sub")
 
-    events = db.query(Event).filter(Event.is_active == True).all()
+    events = db.query(Event).filter(Event.is_active == True, Event.is_deleted == False).all()
+    anns = (
+        db.query(Announcement)
+        .filter(Announcement.visible == True, Announcement.is_deleted == False)
+        .order_by(Announcement.updated_at.desc())
+        .all()
+    )
 
     return render_template(
         "leaderboard.html",
@@ -33,46 +39,44 @@ def index(request: Request, year: Optional[int] = None, month: Optional[int] = N
         main_rows=main_rows,
         sub_rows=sub_rows,
         events=events,
+        announcements=anns,
     )
 
 
 @router.get("/rules", response_class=HTMLResponse)
-def rules_page(request: Request, year: Optional[int] = None, month: Optional[int] = None, db = Depends(get_db), current_user = Depends(get_current_user)):
-    now = datetime.now(TZ)
-    year = int(year or now.year)
-    month = int(month or now.month)
-
-    main_rows = leaderboard_month_and_total(db, year, month, team_type="main")
-    sub_rows = leaderboard_month_and_total(db, year, month, team_type="sub")
-
-    suggestion = None
-    if main_rows and sub_rows:
-        main_last = sorted(main_rows, key=lambda r: (r["month_points"], r["total_points"]))[0]
-        sub_best = sorted(sub_rows, key=lambda r: (r["month_points"], r["total_points"]), reverse=True)[0]
-        if sub_best["month_points"] > main_last["month_points"]:
-            suggestion = {
-                "demote": main_last,
-                "promote": sub_best,
-                "reason": f"子队 {sub_best['username']} 本月 {sub_best['month_points']:.2f} > 主队末位 {main_last['username']} 本月 {main_last['month_points']:.2f}",
-            }
-
-    return render_template("rules.html", title="战队规则", current_user=current_user, year=year, month=month, suggestion=suggestion)
+def rules_page(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    # 规则内容支持管理员编辑，存储于 settings.rules_md
+    rules_md = None
+    s = db.get(Setting, 'rules_md')
+    if s:
+        rules_md = s.value
+    rules_html = md_to_html(rules_md) if rules_md else None
+    return render_template("rules.html", title="战队规则", current_user=current_user, rules_html=rules_html)
 
 
 @router.get("/submission/{sub_id}", response_class=HTMLResponse)
 def submission_detail(sub_id: int, request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
     sub = db.get(Submission, sub_id)
-    if not sub:
+    if not sub or sub.is_deleted:
         raise HTTPException(404, "提交不存在")
     items = db.query(SubmissionItem).filter(SubmissionItem.submission_id == sub_id).all()
     wp_html = md_to_html(sub.wp_md)
     return render_template("submission_detail.html", title="提交详情", current_user=current_user, sub=sub, user=sub.user, event=sub.event, items=items, wp_html=wp_html)
 
 
+@router.get("/announcement/{ann_id}", response_class=HTMLResponse)
+def announcement_detail(ann_id: int, request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    ann = db.get(Announcement, ann_id)
+    if not ann or ann.is_deleted or not ann.visible:
+        raise HTTPException(404, "公告不存在或不可见")
+    content_html = md_to_html(ann.content)
+    return render_template("announcement_detail.html", title=ann.title, current_user=current_user, ann=ann, content_html=content_html)
+
+
 @router.get("/user/{uid}", response_class=HTMLResponse)
 def user_profile(uid: int, request: Request, year: Optional[int] = None, month: Optional[int] = None, db = Depends(get_db), current_user = Depends(get_current_user)):
     u = db.get(User, uid)
-    if not u:
+    if not u or u.is_deleted:
         raise HTTPException(404, "用户不存在")
     now = datetime.now(TZ)
     year = int(year or now.year)
@@ -84,10 +88,11 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
     subs_month = (
         db.query(Submission)
         .filter(Submission.user_id == uid)
+        .filter(Submission.is_deleted == False)
         .filter(Submission.created_at >= start, Submission.created_at < end)
         .all()
     )
-    subs_total = db.query(Submission).filter(Submission.user_id == uid).all()
+    subs_total = db.query(Submission).filter(Submission.user_id == uid, Submission.is_deleted == False).all()
 
     def sum_points(subs):
         return sum(compute_submission_points(s) for s in subs)

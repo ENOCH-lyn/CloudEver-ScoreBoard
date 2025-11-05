@@ -16,7 +16,7 @@
       <button class="btn" type="submit">筛选</button>
     </form>
     {% if event_id %}
-      <form method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
+      <form class="row" style="margin-left:auto" method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
         <button class="btn secondary" type="submit">通过该活动全部待审</button>
       </form>
     {% endif %}

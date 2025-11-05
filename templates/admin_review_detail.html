@@ -7,8 +7,24 @@
     {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
     {% if sub.wp_md %}｜<a href="/submission/{{ sub.id }}">查看 Markdown</a>{% endif %}
   </p>
-  <form method="post" action="/admin/review/{{ sub.id }}/approve_all">
-    <button class="btn" type="submit">一键通过所有待审题目</button>
+  <div class="row">
+    <form method="post" action="/admin/review/{{ sub.id }}/approve_all">
+      <button class="btn" type="submit">一键通过所有待审题目</button>
+    </form>
+    <form method="post" action="/admin/review/{{ sub.id }}/delete" onsubmit="return confirm('确认将此提交移入垃圾箱？');">
+      <button class="btn warn" type="submit">删除该提交</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h3>最终得分</h3>
+  <p class="muted">手动设置可覆盖按题目累计的分数；适用于仅提交 WP 的活动或需要人工调整的情况。</p>
+  <form class="row" method="post" action="/admin/review/{{ sub.id }}/set_points">
+    <label>手动分数</label>
+    <input name="manual_points" value="{{ '%.2f' % sub.manual_points if sub.manual_points is not none else '' }}" style="max-width:160px" placeholder="留空表示按题目累计" />
+    <button class="btn" type="submit">保存分数</button>
+    <button class="btn secondary" name="clear" value="1" type="submit">清除手动分数</button>
   </form>
 </div>
 

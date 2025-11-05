@@ -11,7 +11,7 @@ router = APIRouter()
 @router.get("/submit", response_class=HTMLResponse)
 def submit_list(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_login(current_user)
-    events = db.query(Event).filter(Event.is_active == True).all()
+    events = db.query(Event).filter(Event.is_active == True, Event.is_deleted == False).all()
     return render_template("submit_list.html", title="提交成绩", current_user=current_user, events=events)
 
 
@@ -48,3 +48,20 @@ async def submit_event_action(event_id: int, request: Request, db = Depends(get_
 
     db.commit()
     return RedirectResponse("/submit?msg=提交成功，等待管理员审核后计分", status_code=302)
+
+
+@router.post("/submission/{sub_id}/delete")
+def delete_own_submission(sub_id: int, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_login(current_user)
+    sub = db.get(Submission, sub_id)
+    if not sub or sub.is_deleted:
+        return RedirectResponse("/profile?msg=提交不存在或已删除", status_code=302)
+    if sub.user_id != current_user.id:
+        return RedirectResponse(f"/submission/{sub_id}?msg=无权限", status_code=302)
+    # 仅在未通过前允许删除：没有已通过且未撤销的条目，且未设置人工分
+    approved_any = any(it.approved and not it.revoked for it in sub.items)
+    if approved_any or (sub.manual_points is not None):
+        return RedirectResponse(f"/submission/{sub_id}?msg=已通过或已评分，不能删除", status_code=302)
+    sub.is_deleted = True
+    db.commit()
+    return RedirectResponse("/submit?msg=已删除（移入垃圾箱）", status_code=302)

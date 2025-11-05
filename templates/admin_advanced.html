@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <h2>总览</h2>
+      <div class="grid">
+        <div class="card"><div class="kpi">{{ active_events }}</div><div class="muted">进行中活动</div></div>
+        <div class="card"><div class="kpi">{{ month_submissions }}</div><div class="muted">本月提交次数</div></div>
+        <div class="card"><div class="kpi">{{ '%.2f' % month_points_total }}</div><div class="muted">本月获得积分</div></div>
+        <div class="card"><div class="kpi">{{ main_count }}/{{ sub_count }}</div><div class="muted">主队 / 子队人数</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>最新提交</h3>
+      <table>
+        <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>条目</th><th></th></tr></thead>
+        <tbody>
+        {% for s in recent_subs %}
+          <tr>
+            <td>{{ s.created_at }}</td>
+            <td>{{ s.user.username if s.user else '—' }}</td>
+            <td>{{ s.event.name if s.event else '—' }}</td>
+            <td>{{ s.items|length }}</td>
+            <td><a class="btn secondary" href="/admin/review/{{ s.id }}">审核</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="muted">暂无</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+{% endblock %}

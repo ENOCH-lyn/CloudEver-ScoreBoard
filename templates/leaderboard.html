@@ -1,22 +1,26 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="grid">
-  <div class="card">
-    <h2>选择时间</h2>
-    <form class="row" method="get" action="/">
-      <label>年份</label>
-      <input style="max-width:120px" name="year" value="{{ year }}" />
-      <label>月份</label>
-      <input style="max-width:80px" name="month" value="{{ month }}" />
-      <button class="btn" type="submit">查看</button>
-    </form>
-    <p class="muted" style="margin-top:8px">按月查看统计；点击用户名可查看个人明细。</p>
+  <div class="card" style="min-height:220px">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <div class="kpi">公告</div>
+      <span class="pill">{{ announcements|length }} 条</span>
+    </div>
+    <ul style="max-height:160px; overflow:auto; margin-top:8px">
+      {% for a in announcements %}
+        <li>
+          <a href="/announcement/{{ a.id }}" title="{{ a.title }}">{{ a.title }}</a>
+        </li>
+      {% else %}
+        <li class="muted">暂无公告</li>
+      {% endfor %}
+    </ul>
   </div>
   <div class="card">
     <div class="row"><div class="kpi">进行中活动</div><span class="pill">{{ events|length }} 个</span></div>
     <ul>
       {% for e in events %}
-        <li>{{ e.name }}{% if e.is_reproduction %} · 复现{% endif %}{% if not e.is_active %} · 已停用{% endif %}</li>
+        <li><a href="/submit/{{ e.id }}">{{ e.name }}</a>{% if e.is_reproduction %} · 复现{% endif %}{% if not e.is_active %} · 已停用{% endif %}</li>
       {% else %}
         <li class="muted">暂无活动</li>
       {% endfor %}

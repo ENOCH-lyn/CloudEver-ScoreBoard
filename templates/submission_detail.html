@@ -6,6 +6,14 @@
     提交时间：{{ sub.created_at }}
   {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
   </p>
+  {% if current_user and current_user.id == sub.user_id %}
+    {% set any_ok = (items | selectattr('approved') | selectattr('revoked', 'equalto', False) | list | length) > 0 %}
+    {% if (not any_ok) and (sub.manual_points is none) %}
+    <form method="post" action="/submission/{{ sub.id }}/delete" onsubmit="return confirm('确认删除该提交？该操作会移入垃圾箱');">
+      <button class="btn warn" type="submit">删除我的提交</button>
+    </form>
+    {% endif %}
+  {% endif %}
 </div>
 
 {% if wp_html %}

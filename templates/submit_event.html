@@ -4,7 +4,7 @@
   <h2>提交成绩 — {{ event.name }}</h2>
   <form method="post">
     <div class="row" style="justify-content:space-between; align-items:center">
-      <label>已解题目（由管理员预设）</label>
+      <label>已解题目</label>
       <div class="row">
         <button class="btn secondary" type="button" id="btnCheckAll">全选</button>
         <button class="btn secondary" type="button" id="btnClearAll">清空选择</button>
@@ -16,9 +16,10 @@
         <thead><tr><th style="width:56px">选择</th><th>类别</th><th>题目</th><th style="width:120px">基础分</th></tr></thead>
         <tbody>
         {% for ch in challenges %}
-          <tr>
+          {% set cbid = 'chk_' ~ ch.id %}
+          <tr class="ch-row" data-target="{{ cbid }}" style="cursor:pointer">
             <td>
-              <input type="checkbox" name="ch_{{ ch.id }}" />
+              <input id="{{ cbid }}" type="checkbox" name="ch_{{ ch.id }}" />
             </td>
             <td><span class="pill">{{ ch.category }}</span></td>
             <td>{{ ch.name }}</td>
@@ -49,5 +50,15 @@
   };
   if (btnAll) btnAll.addEventListener('click', ()=> toggle(true));
   if (btnClear) btnClear.addEventListener('click', ()=> toggle(false));
+  // Row click toggles checkbox
+  document.querySelectorAll('tr.ch-row').forEach(tr=>{
+    tr.addEventListener('click', (e)=>{
+      // ignore direct clicks on input to avoid double toggle
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL')) return;
+      const id = tr.getAttribute('data-target');
+      const cb = id && document.getElementById(id);
+      if (cb){ cb.checked = !cb.checked; }
+    });
+  });
 </script>
 {% endblock %}

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <h2>活动类型</h2>
+      <table>
+        <thead><tr><th>名称</th><th>说明</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for t in types %}
+          <tr data-type-id="{{ t.id }}">
+            <td>
+              <span data-view>{{ t.name }}</span>
+              <input data-edit-input name="name" value="{{ t.name }}" form="type-form-{{ t.id }}" style="display:none; max-width:220px" />
+            </td>
+            <td class="muted">
+              <span data-view>{{ t.description or '' }}</span>
+              <input data-edit-input name="description" value="{{ t.description or '' }}" form="type-form-{{ t.id }}" style="display:none; max-width:360px" />
+            </td>
+            <td>{{ '启用' if t.is_active else '停用' }}</td>
+            <td class="row" style="align-items:center; gap:10px; flex-wrap:nowrap; white-space:nowrap">
+              <button type="button" class="btn secondary" data-edit="{{ t.id }}">编辑</button>
+              <form method="post" action="/admin/types/{{ t.id }}/update" id="type-form-{{ t.id }}" style="display:none">
+                <button class="btn secondary" type="submit">保存</button>
+              </form>
+              <form method="post" action="/admin/types/{{ t.id }}/toggle">
+                <button class="btn secondary" type="submit">{{ '停用' if t.is_active else '启用' }}</button>
+              </form>
+              <form method="post" action="/admin/types/{{ t.id }}/delete" onsubmit="return confirm('移入垃圾箱？');">
+                <button class="btn warn" type="submit">删除</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="muted">暂无类型</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>新增类型</h3>
+      <form method="post" action="/admin/types/create" class="row">
+        <label>名称</label>
+        <input name="name" required style="max-width:220px" />
+        <label>说明</label>
+        <input name="description" style="max-width:420px" />
+        <button class="btn" type="submit">添加</button>
+      </form>
+    </div>
+  </main>
+</div>
+<script>
+  // 行内编辑：点击“编辑”后显示输入框与保存按钮，并保持“删除”等按钮同排
+  document.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-edit');
+      const row = document.querySelector(`tr[data-type-id="${id}"]`);
+      if (!row) return;
+      // 切换为编辑态
+      row.querySelectorAll('[data-view]').forEach(el => el.style.display = 'none');
+      row.querySelectorAll('[data-edit-input]').forEach(el => el.style.display = 'inline-block');
+      // 显示保存按钮，隐藏编辑按钮
+      const form = document.getElementById(`type-form-${id}`);
+      if (form) form.style.display = 'inline';
+      btn.style.display = 'none';
+    });
+  });
+</script>
+{% endblock %}

@@ -13,13 +13,18 @@
     <button class="btn" type="submit">筛选</button>
   </form>
   <table>
-    <thead><tr><th>题目名</th><th>类别</th><th>基础分</th><th>操作</th></tr></thead>
+  <thead><tr><th>题目名</th><th>类别</th><th>基础分</th><th>操作</th></tr></thead>
     <tbody>
     {% for ch in challenges %}
       <tr>
         <td>{{ ch.name }}</td>
         <td>{{ ch.category }}</td>
-        <td>{{ ch.base_score }}</td>
+        <td>
+          <form class="row" method="post" action="/admin/events/{{ event.id }}/challenges/{{ ch.id }}/update" style="gap:6px">
+            <input name="base_score" value="{{ ch.base_score }}" style="max-width:100px" />
+            <button class="btn secondary" type="submit">保存</button>
+          </form>
+        </td>
         <td>
           <form method="post" action="/admin/events/{{ event.id }}/challenges/{{ ch.id }}/delete" style="display:inline" onsubmit="return confirm('确定删除【{{ ch.name }}】？此操作不可恢复');">
             <button class="btn warn" type="submit">删除</button>
