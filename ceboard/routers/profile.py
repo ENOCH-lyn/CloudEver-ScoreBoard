@@ -1,4 +1,5 @@
 from pathlib import Path
+import os, uuid
 from fastapi import APIRouter, Depends, Form, UploadFile, File, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 
@@ -44,8 +45,16 @@ async def upload_avatar(request: Request, file: UploadFile = File(...), db = Dep
     data = await file.read()
     if len(data) > MAX_AVATAR_SIZE:
         return RedirectResponse("/profile?msg=文件过大(>1MB)", status_code=302)
+    # 如果已有头像文件，先尝试删除，避免产生孤儿文件
+    old_name = (current_user.avatar_filename or '').strip()
+    if old_name:
+        try:
+            os.remove(Path(IMAGE_DIR) / old_name)
+        except Exception:
+            pass
+    # 使用随机文件名，避免与用户信息绑定
     ext = ext_map[content_type]
-    safe_name = f"u_{current_user.id}{ext}"
+    safe_name = f"av_{uuid.uuid4().hex}{ext}"
     out_path = Path(IMAGE_DIR) / safe_name
     try:
         with open(out_path, 'wb') as f:
@@ -60,6 +69,15 @@ async def upload_avatar(request: Request, file: UploadFile = File(...), db = Dep
 @router.post("/profile/avatar/clear")
 def clear_avatar(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_login(current_user)
+    # 删除磁盘上的旧头像文件
+    from ..config import IMAGE_DIR
+    import os
+    old_name = (current_user.avatar_filename or '').strip()
+    if old_name:
+        try:
+            os.remove(Path(IMAGE_DIR) / old_name)
+        except Exception:
+            pass
     current_user.avatar_filename = None
     db.add(current_user); db.commit()
     return RedirectResponse("/profile?msg=头像已清除", status_code=302)

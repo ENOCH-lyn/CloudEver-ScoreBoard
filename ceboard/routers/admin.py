@@ -406,6 +406,16 @@ def admin_clear_user_avatar(uid: int, db = Depends(get_db), current_user = Depen
     u = db.get(User, uid)
     if not u or u.is_deleted:
         raise HTTPException(404, "用户不存在")
+    # 删除磁盘上的头像文件
+    from pathlib import Path
+    from ..config import IMAGE_DIR
+    import os
+    old_name = (u.avatar_filename or '').strip()
+    if old_name:
+        try:
+            os.remove(Path(IMAGE_DIR) / old_name)
+        except Exception:
+            pass
     u.avatar_filename = None
     db.commit()
     return RedirectResponse(f"/admin/users/{uid}?msg=头像已清除", status_code=302)
@@ -682,6 +692,7 @@ def admin_set_user_password(uid: int, new_password: str = Form(...), db = Depend
 async def admin_set_user_avatar(uid: int, file: UploadFile = File(...), db = Depends(get_db), current_user = Depends(get_current_user)):
     from pathlib import Path
     from ..config import MAX_AVATAR_SIZE, IMAGE_DIR
+    import os, uuid
     require_admin(current_user)
     u = db.get(User, uid)
     if not u:
@@ -697,8 +708,16 @@ async def admin_set_user_avatar(uid: int, file: UploadFile = File(...), db = Dep
     data = await file.read()
     if len(data) > MAX_AVATAR_SIZE:
         return RedirectResponse(f"/admin/users/{uid}?msg=文件过大(>1MB)", status_code=302)
+    # 若用户已有头像文件，先尝试删除，避免遗留
+    old_name = (u.avatar_filename or '').strip()
+    if old_name:
+        try:
+            os.remove(Path(IMAGE_DIR) / old_name)
+        except Exception:
+            pass
+    # 随机化文件名，避免与 user 绑定
     ext = ext_map[content_type]
-    safe_name = f"u_{u.id}{ext}"
+    safe_name = f"av_{uuid.uuid4().hex}{ext}"
     out_path = Path(IMAGE_DIR) / safe_name
     try:
         with open(out_path, 'wb') as f:
@@ -750,6 +769,15 @@ def trash_purge_user(uid: int, db = Depends(get_db), current_user = Depends(get_
     u = db.get(User, uid)
     if not u:
         raise HTTPException(404, "用户不存在")
+    # 删除头像文件
+    from pathlib import Path
+    from ..config import IMAGE_DIR
+    import os
+    try:
+        if u.avatar_filename:
+            os.remove(Path(IMAGE_DIR) / u.avatar_filename)
+    except Exception:
+        pass
     # 解除外键依赖并删除相关数据
     # 1) 删除该用户的提交及条目
     subs = db.query(Submission).filter(Submission.user_id == uid).all()
