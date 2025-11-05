@@ -1,5 +1,4 @@
-# CloudEver-ScoreBoard - FastAPI app
-FROM python:3.11-slim
+FROM mirror.gcr.io/library/python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

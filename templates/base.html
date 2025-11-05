@@ -132,17 +132,14 @@
     {% block content %}{% endblock %}
   </div>
   <script>
-    // 使用频度：给常用链接加权重视觉提示
+    // 高亮当前所在页面的导航项（而不是按使用次数加深颜色）
     const navLinks = document.querySelectorAll('header .nav a');
     navLinks.forEach(a => {
-      a.addEventListener('click', () => {
-        const k = 'usage:' + a.getAttribute('href');
-        const n = parseInt(localStorage.getItem(k) || '0') + 1;
-        localStorage.setItem(k, n.toString());
-      });
-      const k = 'usage:' + a.getAttribute('href');
-      const n = parseInt(localStorage.getItem(k) || '0');
-      if (n > 5) a.classList.add('active');
+      const href = a.getAttribute('href') || '';
+      const path = window.location.pathname;
+      if (href === path || (href !== '/' && path.startsWith(href))) {
+        a.classList.add('active');
+      }
     });
     // Avatar dropdown
     const trigger = document.getElementById('userTrigger');

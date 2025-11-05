@@ -55,14 +55,4 @@
     <div style="margin-top:12px"><button class="btn" type="submit">创建</button></div>
   </form>
 </div>
-
-<div class="card">
-  <h3>按月清空提交</h3>
-  <form method="post" action="/admin/reset_month" class="row">
-    <label>年份</label><input style="max-width:120px" name="year" value="{{ year }}" />
-    <label>月份</label><input style="max-width:80px" name="month" value="{{ month }}" />
-    <button class="btn warn" type="submit">清空该月</button>
-  </form>
-  <p class="muted">此操作将删除该月份内的所有提交（不可恢复）。</p>
-</div>
 {% endblock %}

@@ -351,14 +351,4 @@ def admin_update_user(uid: int, role: str = Form(...), team_type: str = Form(...
     return RedirectResponse("/admin/users?msg=已更新", status_code=302)
 
 
-@router.post("/admin/reset_month")
-def admin_reset_month(year: int = Form(...), month: int = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
-    require_admin(current_user)
-    start = datetime(int(year), int(month), 1, tzinfo=TZ)
-    end = datetime(int(year) + (1 if int(month) == 12 else 0), 1 if int(month) == 12 else int(month) + 1, 1, tzinfo=TZ)
-    q = db.query(Submission).filter(Submission.created_at >= start, Submission.created_at < end)
-    count = q.count()
-    for s in q.all():
-        db.delete(s)
-    db.commit()
-    return RedirectResponse(f"/admin/events?msg=已清空{year}-{month}提交({count}条)", status_code=302)
+# 按月清空提交功能已移除：保留历史数据，月榜通过时间范围统计实现
