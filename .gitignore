@@ -1,0 +1,61 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.build/
+dist/
+build/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Environments / secrets
+.env
+.env.*
+.venv/
+venv/
+ENV/
+env/
+.conda/
+
+# Swap/backup
+*.swp
+*.swo
+*.bak
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# App data & uploads (keep folders)
+/data/**
+!/data/.gitkeep
+/images/**
+!/images/.gitkeep
+
+# Docker / runtime
+*.pid

@@ -33,7 +33,10 @@ async def submit_event_action(event_id: int, request: Request, db = Depends(get_
         raise HTTPException(404, "活动不存在或未启用")
 
     form = await await_form(request)
-    wp_url = form.get("wp_url") or None
+    wp_url = (form.get("wp_url") or "").strip() or None
+    # Sanitize URL: only allow http/https
+    if wp_url and not (wp_url.lower().startswith("http://") or wp_url.lower().startswith("https://")):
+        wp_url = None
     wp_md = form.get("wp_md") or None
 
     sub = Submission(user_id=current_user.id, event_id=event_id, wp_url=wp_url, wp_md=wp_md)

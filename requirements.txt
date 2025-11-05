@@ -6,3 +6,4 @@ python-multipart>=0.0.9
 Jinja2>=3.1
 markdown>=3.5
 aiofiles>=23.2.1
+bleach>=6.1.0

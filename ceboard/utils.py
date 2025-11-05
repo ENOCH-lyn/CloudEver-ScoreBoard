@@ -1,6 +1,10 @@
 from datetime import datetime
 from typing import Optional, Dict, List
 import markdown as mdlib
+try:
+    import bleach
+except Exception:  # bleach not installed in current env
+    bleach = None
 
 from .config import TZ
 from .models import Submission
@@ -133,6 +137,38 @@ def leaderboard_count_approved(db, year: int, month: int, team_type: str) -> Lis
 
 
 def md_to_html(md_text: Optional[str]) -> str:
+    """Render markdown to sanitized HTML to prevent XSS.
+    Allowed tags are restricted; script/style/event handlers are stripped.
+    Images are intentionally disallowed; links are preserved with safe protocols.
+    """
     if not md_text:
         return ""
-    return mdlib.markdown(md_text, extensions=["fenced_code", "tables"]) or ""
+    raw_html = mdlib.markdown(md_text, extensions=["fenced_code", "tables"]) or ""
+    if bleach is None:
+        # Safe fallback: show raw markdown as escaped preformatted text
+        from html import escape
+        return f"<pre class='md-fallback'>{escape(md_text)}</pre>"
+    allowed_tags = set([
+        'a', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'blockquote',
+        'pre', 'code', 'hr', 'br',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td'
+    ])
+    allowed_attrs = {
+        'a': ['href', 'title', 'target', 'rel'],
+        'th': ['colspan', 'rowspan'],
+        'td': ['colspan', 'rowspan'],
+        # keep code/class if using future highlighters
+        'code': ['class'],
+        'pre': ['class'],
+    }
+    cleaned = bleach.clean(
+        raw_html,
+        tags=allowed_tags,
+        attributes=allowed_attrs,
+        protocols=['http', 'https', 'mailto'],
+        strip=True,
+    )
+    # Optional: ensure external links have rel noopener
+    # We avoid linkify to keep code blocks intact.
+    return cleaned

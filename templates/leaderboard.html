@@ -26,16 +26,16 @@
 
 <div class="grid">
   <div class="card">
-    <h3>主队排行榜</h3>
+    <h3>主队积分榜</h3>
     <table>
-      <thead><tr><th>#</th><th>队员</th><th>本月通过题数</th><th>累计通过题数</th></tr></thead>
+      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>累计积分</th></tr></thead>
       <tbody>
       {% for row in main_rows %}
         <tr>
           <td>{{ loop.index }}</td>
           <td><a href="/user/{{ row.user_id }}?year={{ year }}&month={{ month }}">{{ row.username }}</a></td>
-          <td>{{ row.month_count }}</td>
-          <td>{{ row.total_count }}</td>
+          <td>{{ '%.2f' % row.month_points }}</td>
+          <td>{{ '%.2f' % row.total_points }}</td>
         </tr>
       {% else %}
         <tr><td colspan="4" class="muted">暂无数据</td></tr>
@@ -44,16 +44,16 @@
     </table>
   </div>
   <div class="card">
-    <h3>子队排行榜</h3>
+    <h3>子队积分榜</h3>
     <table>
-      <thead><tr><th>#</th><th>队员</th><th>本月通过题数</th><th>累计通过题数</th></tr></thead>
+      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>累计积分</th></tr></thead>
       <tbody>
       {% for row in sub_rows %}
         <tr>
           <td>{{ loop.index }}</td>
           <td><a href="/user/{{ row.user_id }}?year={{ year }}&month={{ month }}">{{ row.username }}</a></td>
-          <td>{{ row.month_count }}</td>
-          <td>{{ row.total_count }}</td>
+          <td>{{ '%.2f' % row.month_points }}</td>
+          <td>{{ '%.2f' % row.total_points }}</td>
         </tr>
       {% else %}
         <tr><td colspan="4" class="muted">暂无数据</td></tr>

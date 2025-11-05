@@ -4,7 +4,7 @@
   <h2>提交详情 #{{ sub.id }} · {{ user.username }} · {{ event.name }}</h2>
   <p class="muted">
     提交时间：{{ sub.created_at }}
-    {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank">{{ sub.wp_url }}</a>{% endif %}
+  {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
   </p>
 </div>
 

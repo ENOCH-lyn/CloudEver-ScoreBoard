@@ -34,9 +34,9 @@
     .brand{font-weight:800; letter-spacing:.3px}
     .brand b{color:var(--text)}
     .brand small{color:var(--muted); font-weight:600}
-  .nav a{margin-right:8px; color:#334155; text-decoration:none; font-weight:600; padding:8px 10px; border-radius:8px}
-    .nav a:hover{background:#eef2ff; color:#1e293b}
-    .nav a.active{color:#1e293b; border-bottom:2px solid var(--accent)}
+  .nav a{margin-right:12px; color:#475569; text-decoration:none; font-weight:600; padding:8px 0}
+  .nav a:hover{color:#111827; text-decoration:none}
+  .nav a.active{color:#111827}
 
     .wrap{max-width:1100px; margin:0 auto; padding:24px 22px}
 
@@ -88,8 +88,8 @@
 
     .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
     .user-menu{position:relative}
-    .user-trigger{display:flex; align-items:center; gap:8px; padding:6px; border-radius:999px; cursor:pointer}
-    .user-trigger:hover{background:#eef2ff}
+  .user-trigger{display:flex; align-items:center; gap:8px; padding:6px; border-radius:999px; cursor:pointer}
+  .user-trigger:hover{background:transparent}
     .menu{position:absolute; right:0; top:46px; min-width:160px; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); display:none}
     .menu a, .menu form button{display:block; width:100%; text-align:left; padding:10px 12px; color:#334155; text-decoration:none; background:transparent; border:none; cursor:pointer}
     .menu a:hover, .menu form button:hover{background:#f1f5ff}
@@ -99,7 +99,7 @@
   <header>
     <div class="brand">CloudEver <small>ScoreBoard</small></div>
     <div class="nav">
-      <a href="/">排行榜</a>
+  <a href="/">积分榜</a>
       <a href="/rules">战队规则</a>
       <a href="/submit">提交成绩</a>
       {% if current_user and current_user.role == 'admin' %}

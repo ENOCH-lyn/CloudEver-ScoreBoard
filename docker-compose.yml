@@ -4,7 +4,7 @@ services:
     build: .
     container_name: cloudover-scoreboard
     ports:
-      - "8000:8000"
+      - "52123:8000"
     environment:
       - SESSION_SECRET=${SESSION_SECRET:-change-me}
       - DATA_DIR=/app/data

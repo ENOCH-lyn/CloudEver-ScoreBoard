@@ -4,7 +4,7 @@
   <h2>审核 — 提交 #{{ sub.id }} · {{ user.username }} · {{ event.name }}</h2>
   <p class="muted">
     提交时间：{{ sub.created_at }}
-    {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank">{{ sub.wp_url }}</a>{% endif %}
+    {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
     {% if sub.wp_md %}｜<a href="/submission/{{ sub.id }}">查看 Markdown</a>{% endif %}
   </p>
   <form method="post" action="/admin/review/{{ sub.id }}/approve_all">
