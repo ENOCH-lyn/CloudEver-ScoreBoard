@@ -118,7 +118,7 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
         rows.append({
             "sub_id": s.id,
             "created_at": s.created_at,
-            "username": s.user.username if s.user else f"uid:{s.user_id}",
+            "username": s.user.username if s.user else "—",
             "event_name": s.event.name if s.event else "—",
             "pending": pending,
             "ok": ok,
@@ -505,8 +505,42 @@ def admin_trash(request: Request, db = Depends(get_db), current_user = Depends(g
     trashed_anns = db.query(Announcement).filter(Announcement.is_deleted == True).order_by(Announcement.id.desc()).all()
     trashed_subs = db.query(Submission).filter(Submission.is_deleted == True).order_by(Submission.id.desc()).all()
     trashed_users = db.query(User).filter(User.is_deleted == True).order_by(User.username.asc()).all()
-    return render_template("admin_trash.html", title="垃圾箱", current_user=current_user,
-        trashed_events=trashed_events, trashed_challenges=trashed_challenges, trashed_anns=trashed_anns, trashed_subs=trashed_subs, trashed_users=trashed_users)
+    trashed_adjs = db.query(PointAdjustment).filter(PointAdjustment.is_deleted == True).order_by(PointAdjustment.created_at.desc()).all()
+    # build username mapping for adjustments
+    user_ids = list({a.user_id for a in trashed_adjs})
+    users_map = {u.id: u.username for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    return render_template(
+        "admin_trash.html",
+        title="垃圾箱",
+        current_user=current_user,
+        trashed_events=trashed_events,
+        trashed_challenges=trashed_challenges,
+        trashed_anns=trashed_anns,
+        trashed_subs=trashed_subs,
+        trashed_users=trashed_users,
+        trashed_adjs=trashed_adjs,
+        users_map=users_map,
+    )
+
+@router.post("/admin/trash/adjustment/{adj_id}/restore")
+def trash_restore_adjustment(adj_id: int, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    adj = db.get(PointAdjustment, adj_id)
+    if not adj:
+        raise HTTPException(404, "调整不存在")
+    adj.is_deleted = False
+    db.commit()
+    return RedirectResponse("/admin/trash?msg=已恢复积分调整", status_code=302)
+
+@router.post("/admin/trash/adjustment/{adj_id}/purge")
+def trash_purge_adjustment(adj_id: int, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    adj = db.get(PointAdjustment, adj_id)
+    if not adj:
+        raise HTTPException(404, "调整不存在")
+    db.delete(adj)
+    db.commit()
+    return RedirectResponse("/admin/trash?msg=已彻底删除积分调整", status_code=302)
 
 
 @router.post("/admin/trash/event/{event_id}/restore")
@@ -620,13 +654,14 @@ def admin_adjustments(request: Request, db = Depends(get_db), current_user = Dep
     month = int(request.query_params.get("month") or now.month)
     # 仅显示未删除成员
     users = db.query(User).filter(User.is_deleted == False).order_by(User.username.asc()).all()
+    user_map = {u.id: u.username for u in users}
     adjs = (
         db.query(PointAdjustment)
         .filter(PointAdjustment.is_deleted == False, PointAdjustment.year == year, PointAdjustment.month == month)
         .order_by(PointAdjustment.created_at.desc())
         .all()
     )
-    return render_template("admin_adjustments.html", title="积分调整", current_user=current_user, users=users, adjs=adjs, year=year, month=month)
+    return render_template("admin_adjustments.html", title="积分调整", current_user=current_user, users=users, adjs=adjs, year=year, month=month, user_map=user_map)
 
 
 @router.post("/admin/adjustments/create")

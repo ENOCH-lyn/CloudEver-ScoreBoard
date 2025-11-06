@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2>提交详情 #{{ sub.id }} · {{ user.username }} · {{ event.name }}</h2>
+  <h2>提交详情 — {{ user.username }} · {{ event.name }}</h2>
   <p class="muted">
     提交时间：{{ sub.created_at }}
-  {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
+  {% if can_view_wp and sub.wp_url %}
+    {% set link_text = (sub.wp_url if (sub.wp_url|length <= 40) else '外链') %}
+    ｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ link_text }}</a>
+  {% endif %}
   </p>
   {% if current_user and current_user.id == sub.user_id %}
     {% set any_ok = (items | selectattr('approved') | selectattr('revoked', 'equalto', False) | list | length) > 0 %}
@@ -25,7 +28,7 @@
 
 <div class="card">
   <h3>题目条目</h3>
-  <table>
+  <table class="table-cards">
     <thead><tr><th>#</th><th>类别</th><th>题目</th><th>基础分</th><th>状态</th></tr></thead>
     <tbody>
     {% for it in items %}

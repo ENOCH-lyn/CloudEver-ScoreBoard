@@ -13,7 +13,7 @@
 
     {% if challenges %}
       <table>
-        <thead><tr><th style="width:56px">选择</th><th>类别</th><th>题目</th><th style="width:120px">基础分</th></tr></thead>
+  <thead><tr><th style="width:56px">选择</th><th class="hide-sm">类别</th><th>题目</th><th style="width:120px">基础分</th></tr></thead>
         <tbody>
         {% for ch in challenges %}
           {% set cbid = 'chk_' ~ ch.id %}
@@ -21,7 +21,7 @@
             <td>
               <input id="{{ cbid }}" type="checkbox" name="ch_{{ ch.id }}" />
             </td>
-            <td><span class="pill">{{ ch.category }}</span></td>
+            <td class="hide-sm"><span class="pill">{{ ch.category }}</span></td>
             <td>{{ ch.name }}</td>
             <td>{{ ch.base_score }}</td>
           </tr>

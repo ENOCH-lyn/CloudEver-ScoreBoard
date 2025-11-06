@@ -12,7 +12,7 @@
     <input name="q" value="{{ q or '' }}" placeholder="题目名包含..." style="max-width:220px" />
     <button class="btn" type="submit">筛选</button>
   </form>
-  <table>
+  <table class="table-cards">
   <thead><tr><th>题目名</th><th>类别</th><th>基础分</th><th>操作</th></tr></thead>
     <tbody>
     {% for ch in challenges %}

@@ -3,15 +3,14 @@
 <div class="row" style="align-items:flex-start">
   {% include 'partials/admin_side_nav.html' %}
   <main style="flex:1">
-<div class="grid">
+<div class="grid" style="grid-template-columns:1fr">
   <div class="card">
     <h2>成员（垃圾箱）</h2>
-    <table>
-      <thead><tr><th>ID</th><th>用户名</th><th>队伍</th><th>操作</th></tr></thead>
+  <table class="table-cards">
+      <thead><tr><th>用户名</th><th>队伍</th><th>操作</th></tr></thead>
       <tbody>
       {% for u in trashed_users %}
         <tr>
-          <td>{{ u.id }}</td>
           <td>{{ u.username }}</td>
           <td>{{ u.team_type }}</td>
           <td class="row">
@@ -20,14 +19,14 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="4" class="muted">无</td></tr>
+        <tr><td colspan="3" class="muted">无</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
   <div class="card">
     <h2>提交（垃圾箱）</h2>
-    <table>
+  <table class="table-cards">
       <thead><tr><th>ID</th><th>成员</th><th>活动</th><th>时间</th><th>操作</th></tr></thead>
       <tbody>
       {% for s in trashed_subs %}
@@ -49,7 +48,7 @@
   </div>
   <div class="card">
     <h2>活动（垃圾箱）</h2>
-    <table>
+  <table class="table-cards">
       <thead><tr><th>ID</th><th>名称</th><th>操作</th></tr></thead>
       <tbody>
       {% for e in trashed_events %}
@@ -69,7 +68,7 @@
   </div>
   <div class="card">
     <h2>题目（垃圾箱）</h2>
-    <table>
+  <table class="table-cards">
       <thead><tr><th>ID</th><th>题目</th><th>操作</th></tr></thead>
       <tbody>
       {% for c in trashed_challenges %}
@@ -89,7 +88,7 @@
   </div>
   <div class="card">
     <h2>公告（垃圾箱）</h2>
-    <table>
+  <table class="table-cards">
       <thead><tr><th>ID</th><th>标题</th><th>操作</th></tr></thead>
       <tbody>
       {% for a in trashed_anns %}
@@ -103,6 +102,29 @@
         </tr>
       {% else %}
         <tr><td colspan="3" class="muted">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>积分调整（垃圾箱）</h2>
+    <table class="table-cards">
+      <thead><tr><th>ID</th><th>成员</th><th>年月</th><th>分值</th><th>原因</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for a in trashed_adjs %}
+        <tr>
+          <td>{{ a.id }}</td>
+          <td>{{ (users_map.get(a.user_id) or '—') }}</td>
+          <td>{{ a.year }}-{{ '%02d' % a.month }}</td>
+          <td>{{ '%.2f' % a.amount }}</td>
+          <td>{{ a.reason or '—' }}</td>
+          <td class="row">
+            <form method="post" action="/admin/trash/adjustment/{{ a.id }}/restore"><button class="btn secondary" type="submit">恢复</button></form>
+            <form method="post" action="/admin/trash/adjustment/{{ a.id }}/purge" onsubmit="return confirm('彻底删除？不可恢复！');"><button class="btn warn" type="submit">彻底删除</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="muted">无</td></tr>
       {% endfor %}
       </tbody>
     </table>

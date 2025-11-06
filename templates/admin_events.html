@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card">
   <h2>活动管理</h2>
-  <table>
+  <table class="table-cards">
     <thead><tr><th>名称</th><th>权重</th><th>类型</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>
     {% for e in events %}
@@ -35,15 +35,9 @@
     <label>名称</label>
     <input name="name" required />
     <label>开始时间</label>
-    <div class="row">
-      <input id="start" name="start" type="datetime-local" style="max-width:260px" />
-      <button class="btn secondary" type="button" onclick="document.getElementById('start').showPicker && document.getElementById('start').showPicker()">选择开始时间</button>
-    </div>
+    <input id="start" name="start" type="datetime-local" style="max-width:260px" />
     <label>结束时间</label>
-    <div class="row">
-      <input id="end" name="end" type="datetime-local" style="max-width:260px" />
-      <button class="btn secondary" type="button" onclick="document.getElementById('end').showPicker && document.getElementById('end').showPicker()">选择结束时间</button>
-    </div>
+    <input id="end" name="end" type="datetime-local" style="max-width:260px" />
     <label>活动权重</label>
     <input name="weight" value="1.0" />
     <label>类型</label>

@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2>审核 — 提交 #{{ sub.id }} · {{ user.username }} · {{ event.name }}</h2>
+  <h2>审核 — {{ user.username }} · {{ event.name }}</h2>
   <p class="muted">
     提交时间：{{ sub.created_at }}
-    {% if sub.wp_url %}｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ sub.wp_url }}</a>{% endif %}
+    {% if sub.wp_url %}
+      {% set link_text = (sub.wp_url if (sub.wp_url|length <= 40) else '外链') %}
+      ｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ link_text }}</a>
+    {% endif %}
     {% if sub.wp_md %}｜<a href="/submission/{{ sub.id }}">查看 Markdown</a>{% endif %}
   </p>
   <div class="row">
@@ -23,14 +26,16 @@
   <form class="row" method="post" action="/admin/review/{{ sub.id }}/set_points">
     <label>手动分数</label>
     <input name="manual_points" value="{{ '%.2f' % sub.manual_points if sub.manual_points is not none else '' }}" style="max-width:160px" placeholder="留空表示按题目累计" />
-    <button class="btn" type="submit">保存分数</button>
-    <button class="btn secondary" name="clear" value="1" type="submit">清除手动分数</button>
+  <button class="btn" type="submit">保存分数</button>
+  {% if sub.manual_points is not none %}
+  <button class="btn secondary" name="clear" value="1" type="submit">清除手动分数</button>
+  {% endif %}
   </form>
 </div>
 
 <div class="card">
   <h3>题目列表</h3>
-  <table>
+  <table class="table-cards">
     <thead><tr><th>#</th><th>类别</th><th>题目</th><th>基础分</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>
     {% for it in items %}

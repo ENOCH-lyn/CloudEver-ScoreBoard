@@ -15,7 +15,7 @@
         <td>{{ r.subs|length }}</td>
         <td>
           {% for s in r.subs %}
-            <a class="btn secondary" href="/admin/review/{{ s.id }}">提交#{{ s.id }}</a>
+            <a class="btn secondary" href="/admin/review/{{ s.id }}">复审</a>
           {% endfor %}
         </td>
       </tr>

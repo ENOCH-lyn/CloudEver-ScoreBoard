@@ -5,19 +5,19 @@
   <main style="flex:1">
   <div class="card">
     <h2>积分调整（仅影响指定月份）</h2>
-  <form class="row" style="flex-wrap:nowrap" method="get" action="/admin/adjustments">
+  <form class="row" method="get" action="/admin/adjustments">
       <label>年份</label>
       <input style="max-width:120px" name="year" value="{{ year }}" />
       <label>月份</label>
   <input style="max-width:120px" name="month" value="{{ month }}" />
       <button class="btn" type="submit">查看</button>
     </form>
-    <table>
-      <thead><tr><th>成员</th><th>分值</th><th>原因</th><th>创建时间</th><th>操作</th></tr></thead>
+  <table class="table-cards">
+  <thead><tr><th>成员</th><th>分值</th><th>原因</th><th>创建时间</th><th>操作</th></tr></thead>
       <tbody>
       {% for a in adjs %}
         <tr>
-          <td>{{ a.user_id }}</td>
+          <td>{{ (user_map.get(a.user_id) or '—') }}</td>
           <td>{{ '%.2f' % a.amount }}</td>
           <td>{{ a.reason }}</td>
           <td>{{ a.created_at }}</td>
@@ -37,7 +37,7 @@
   <div class="card">
     <h3>新增调整</h3>
     <form method="post" action="/admin/adjustments/create">
-      <div class="row" style="flex-wrap:nowrap">
+      <div class="row">
         <label>成员</label>
         <select name="user_id" style="max-width:220px">
           {% for u in users %}

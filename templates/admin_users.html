@@ -2,27 +2,37 @@
 {% block content %}
 <div class="card">
   <h2>成员管理</h2>
-  <table>
+  <table class="table-cards">
   <thead><tr><th>用户名</th><th>角色</th><th>队伍</th><th>操作</th></tr></thead>
     <tbody>
     {% for u in users %}
       <tr>
-  <td><a href="/admin/users/{{ u.id }}">{{ u.username }}</a></td>
-        <td>{{ u.role }}</td>
-        <td>{{ u.team_type }}</td>
+        <td><a href="/admin/users/{{ u.id }}">{{ u.username }}</a></td>
+        <td>
+          {% if current_user.role == 'admin' %}
+            <select name="role" form="uform-{{ u.id }}" style="width:auto; min-width:120px">
+              <option value="member" {% if u.role=='member' %}selected{% endif %}>member</option>
+              <option value="reviewer" {% if u.role=='reviewer' %}selected{% endif %}>reviewer</option>
+              <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
+            </select>
+          {% else %}
+            {{ u.role }}
+          {% endif %}
+        </td>
+        <td>
+          {% if current_user.role == 'admin' %}
+            <select name="team_type" form="uform-{{ u.id }}" style="width:auto; min-width:120px">
+              <option value="main" {% if u.team_type=='main' %}selected{% endif %}>main(主队)</option>
+              <option value="sub" {% if u.team_type=='sub' %}selected{% endif %}>sub(子队)</option>
+            </select>
+          {% else %}
+            {{ u.team_type }}
+          {% endif %}
+        </td>
         <td>
           {% if current_user.role == 'admin' %}
           <div class="row" style="align-items:center; gap:10px; flex-wrap:nowrap; white-space:nowrap">
-            <form method="post" action="/admin/users/{{ u.id }}/update" class="row" style="align-items:center; gap:8px">
-              <select name="role" style="width:auto; min-width:120px">
-                <option value="member" {% if u.role=='member' %}selected{% endif %}>member</option>
-                <option value="reviewer" {% if u.role=='reviewer' %}selected{% endif %}>reviewer</option>
-                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
-              </select>
-              <select name="team_type" style="width:auto; min-width:120px">
-                <option value="main" {% if u.team_type=='main' %}selected{% endif %}>main(主队)</option>
-                <option value="sub" {% if u.team_type=='sub' %}selected{% endif %}>sub(子队)</option>
-              </select>
+            <form id="uform-{{ u.id }}" method="post" action="/admin/users/{{ u.id }}/update" class="row" style="align-items:center; gap:8px">
               <button class="btn secondary" type="submit">保存</button>
             </form>
             <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('确认将该成员移入垃圾箱？');">

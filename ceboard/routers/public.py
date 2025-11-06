@@ -60,8 +60,23 @@ def submission_detail(sub_id: int, request: Request, db = Depends(get_db), curre
     if not sub or sub.is_deleted:
         raise HTTPException(404, "提交不存在")
     items = db.query(SubmissionItem).filter(SubmissionItem.submission_id == sub_id).all()
-    wp_html = md_to_html(sub.wp_md)
-    return render_template("submission_detail.html", title="提交详情", current_user=current_user, sub=sub, user=sub.user, event=sub.event, items=items, wp_html=wp_html)
+    # 普通成员查看他人提交时不展示 WP 与外链
+    can_view_wp = False
+    if current_user:
+        if current_user.id == sub.user_id or current_user.role in ("admin", "reviewer"):
+            can_view_wp = True
+    wp_html = md_to_html(sub.wp_md) if (sub.wp_md and can_view_wp) else None
+    return render_template(
+        "submission_detail.html",
+        title="提交详情",
+        current_user=current_user,
+        sub=sub,
+        user=sub.user,
+        event=sub.event,
+        items=items,
+        wp_html=wp_html,
+        can_view_wp=can_view_wp,
+    )
 
 
 @router.get("/announcement/{ann_id}", response_class=HTMLResponse)
@@ -102,6 +117,14 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
         count_ok = sum(1 for it in s.items if it.approved and not it.revoked)
         count_pending = sum(1 for it in s.items if not it.approved)
         count_revoked = sum(1 for it in s.items if it.revoked)
+        # 展示本次提交涉及的题目名称（不暴露 WP）
+        ch_names = []
+        for it in s.items:
+            try:
+                if it.challenge and it.challenge.name:
+                    ch_names.append(it.challenge.name)
+            except Exception:
+                pass
         details.append({
             "sub_id": s.id,
             "created_at": s.created_at,
@@ -111,6 +134,7 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
             "count_revoked": count_revoked,
             "points": compute_submission_points(s),
             "wp_url": s.wp_url,
+            "challenges": ch_names,
         })
 
     return render_template(

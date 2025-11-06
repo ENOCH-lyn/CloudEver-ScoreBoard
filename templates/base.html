@@ -34,11 +34,19 @@
     .brand{font-weight:800; letter-spacing:.3px}
     .brand b{color:var(--text)}
     .brand small{color:var(--muted); font-weight:600}
+  .nav{display:flex; align-items:center}
   .nav a{margin-right:12px; color:#475569; text-decoration:none; font-weight:600; padding:8px 0}
   .nav a:hover{color:#111827; text-decoration:none}
   .nav a.active{color:#111827}
 
-    .wrap{max-width:1100px; margin:0 auto; padding:24px 22px}
+  .hamburger{display:none; width:40px; height:40px; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer}
+  .hamburger span{display:block; width:18px; height:2px; background:#334155; position:relative}
+  .hamburger span::before, .hamburger span::after{content:""; position:absolute; left:0; width:18px; height:2px; background:#334155}
+  .hamburger span::before{top:-6px}
+  .hamburger span::after{top:6px}
+
+  /* Full-width content container to allow cards to adapt fluidly */
+  .wrap{width:100%; max-width:none; margin:0 auto; padding:24px 22px}
 
     .card{
       position:relative; margin:14px 0; padding:18px 18px;
@@ -47,7 +55,7 @@
     }
 
     .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(420px,1fr)); gap:16px}
     .muted{color:var(--muted)}
     .kpi{font-weight:800; font-size:28px; letter-spacing:.5px}
     .pill{padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:#f2f4f8}
@@ -69,7 +77,7 @@
     /* Remove harsh blue ring for checkbox/radio focus while keeping accessibility */
     input[type=checkbox], input[type=radio]{ width:auto }
     input[type=checkbox]:focus, input[type=radio]:focus{ outline:none; box-shadow:none; }
-    label{font-weight:700; font-size:13px; color:#334155}
+  label{display:block; font-weight:700; font-size:13px; color:#334155; margin:6px 0 6px}
 
     input[type=file]{
       border:1px dashed #cbd5e1; padding:12px; background:#f8fafc; color:#334155
@@ -77,7 +85,7 @@
 
     table{width:100%; border-collapse:separate; border-spacing:0; background:#fff}
     thead th{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#6b7280}
-    th,td{padding:10px 10px; border-bottom:1px solid var(--border); text-align:left}
+  th,td{padding:10px 10px; border-bottom:1px solid var(--border); text-align:left; word-break:break-word}
     tbody tr:hover{background:#f9fafb}
 
     .status{font-size:12px; padding:2px 6px; border-radius:999px; border:1px solid var(--border)}
@@ -89,7 +97,8 @@
     .md pre{background:#f1f5f9; padding:10px; border-radius:8px}
     .md code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace}
 
-    .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
+  .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
+  .avatar-initial{width:88px; height:88px; border-radius:999px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:800; color:#1f2937; background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
     .user-menu{position:relative}
   .user-trigger{display:flex; align-items:center; gap:8px; padding:6px; border-radius:999px; cursor:pointer}
   .user-trigger:hover{background:transparent}
@@ -100,12 +109,51 @@
   .side-nav{display:flex; flex-direction:column}
   .side-nav a{padding:12px 16px; border-bottom:1px solid var(--border); color:#334155; text-decoration:none}
   .side-nav a:hover{background:#f8fafc}
+
+  /* Admin aside default width */
+  .admin-aside{width:240px}
+
+  /* Chips for multi-line tags */
+  .chips{display:flex; flex-wrap:wrap; gap:6px}
+  .chip{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--border); background:#f8fafc; font-size:12px; color:#334155}
+
+  /* Mobile styles */
+  @media (max-width: 640px){
+    header{padding:10px 12px}
+    .wrap{padding:14px 12px}
+    .card{padding:14px}
+    .kpi{font-size:22px}
+    .hamburger{display:inline-flex}
+    header .nav{display:none; position:absolute; top:54px; left:0; right:0; background:var(--surface); border-bottom:1px solid var(--border); box-shadow: var(--shadow); flex-direction:column; padding:10px 12px}
+    header .nav.open{display:flex}
+    header .nav a{padding:10px 4px; margin:0}
+  /* 仅对非卡片表格启用横向滚动容器，避免影响 .table-cards 的铺满效果 */
+  table:not(.table-cards){display:block; width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; font-size:14px}
+    thead th, td{white-space:normal; word-break:break-word}
+    .row{gap:8px}
+    .row{flex-wrap:wrap !important}
+    .grid{grid-template-columns: 1fr}
+    .admin-aside{width:100%}
+    .side-nav{flex-direction:row; flex-wrap:wrap; gap:8px; padding:12px}
+    .side-nav a{border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:8px 10px}
+    /* Helpers */
+    .hide-sm{display:none !important}
+  }
+  /* Card-style tables on mobile */
+  @media (max-width: 640px){
+    table.table-cards{border-collapse:separate; border-spacing:0; width:100%;}
+    table.table-cards thead{display:none}
+    table.table-cards tr{display:block; background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px; margin:10px 0}
+    table.table-cards td{display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:6px 4px; border:none}
+    table.table-cards td::before{content:attr(data-label); color:var(--muted); font-weight:600; margin-right:12px; min-width:92px}
+  }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">CloudEver <small>ScoreBoard</small></div>
-    <div class="nav">
+  <button class="hamburger" id="mobileMenuBtn" aria-label="打开菜单"><span></span></button>
+  <div class="nav" id="mainNav">
   <a href="/">积分榜</a>
       <a href="/rules">战队规则</a>
       <a href="/submit">提交成绩</a>
@@ -153,6 +201,16 @@
         a.classList.add('active');
       }
     });
+    // Mobile nav toggle
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    const mainNav = document.getElementById('mainNav');
+    if (mobileBtn && mainNav){
+      mobileBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        mainNav.classList.toggle('open');
+      });
+      document.addEventListener('click', ()=>{ mainNav.classList.remove('open'); });
+    }
     // Avatar dropdown
     const trigger = document.getElementById('userTrigger');
     const dropdown = document.getElementById('userDropdown');
@@ -163,6 +221,21 @@
       });
       document.addEventListener('click', ()=>{ dropdown.style.display='none'; });
     }
+
+    // Auto add data-labels for card tables (mobile)
+    const enhanceCardTables = ()=>{
+      document.querySelectorAll('table.table-cards').forEach(tbl => {
+        const headers = Array.from(tbl.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        tbl.querySelectorAll('tbody tr').forEach(tr => {
+          Array.from(tr.children).forEach((td, i) => {
+            if (!td.getAttribute('data-label') && headers[i]){
+              td.setAttribute('data-label', headers[i]);
+            }
+          });
+        });
+      });
+    };
+    enhanceCardTables();
   </script>
 </body>
 </html>
