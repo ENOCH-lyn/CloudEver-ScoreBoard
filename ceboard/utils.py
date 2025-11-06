@@ -47,6 +47,12 @@ def compute_submission_points(sub: Submission) -> float:
 def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> List[Dict[str, float]]:
     from .models import Submission, User, PointAdjustment
     start, end = month_range(year, month)
+    # previous month range
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+    prev_start, prev_end = month_range(prev_year, prev_month)
 
     subs_month = (
         db.query(Submission)
@@ -67,8 +73,20 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
         .filter(Submission.is_deleted == False)
         .all()
     )
+    # previous month submissions
+    subs_prev = (
+        db.query(Submission)
+        .join(User, Submission.user_id == User.id)
+        .filter(User.team_type == team_type)
+        .filter(User.role == 'member')
+        .filter(User.is_deleted == False)
+        .filter(Submission.is_deleted == False)
+        .filter(Submission.created_at >= prev_start, Submission.created_at < prev_end)
+        .all()
+    )
 
     month_by_user: Dict[int, float] = {}
+    prev_by_user: Dict[int, float] = {}
     total_by_user: Dict[int, float] = {}
     names: Dict[int, str] = {}
 
@@ -81,6 +99,12 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
     for s in subs_total:
         pts = compute_submission_points(s)
         total_by_user[s.user_id] = total_by_user.get(s.user_id, 0.0) + pts
+        if s.user_id not in names:
+            u = db.get(User, s.user_id); names[s.user_id] = u.username if u else f"uid:{s.user_id}"
+
+    for s in subs_prev:
+        pts = compute_submission_points(s)
+        prev_by_user[s.user_id] = prev_by_user.get(s.user_id, 0.0) + pts
         if s.user_id not in names:
             u = db.get(User, s.user_id); names[s.user_id] = u.username if u else f"uid:{s.user_id}"
 
@@ -99,6 +123,21 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
         if a.user_id not in names:
             u = db.get(User, a.user_id); names[a.user_id] = u.username if u else f"uid:{a.user_id}"
 
+    # apply previous month's adjustments
+    adjs_prev = (
+        db.query(PointAdjustment)
+        .join(User, PointAdjustment.user_id == User.id)
+        .filter(User.team_type == team_type)
+        .filter(User.role == 'member')
+        .filter(PointAdjustment.is_deleted == False)
+        .filter(PointAdjustment.year == prev_year, PointAdjustment.month == prev_month)
+        .all()
+    )
+    for a in adjs_prev:
+        prev_by_user[a.user_id] = prev_by_user.get(a.user_id, 0.0) + float(a.amount)
+        if a.user_id not in names:
+            u = db.get(User, a.user_id); names[a.user_id] = u.username if u else f"uid:{a.user_id}"
+
     # total adjustments across all months contribute to total_points
     adjs_total = (
         db.query(PointAdjustment)
@@ -113,12 +152,13 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
         if a.user_id not in names:
             u = db.get(User, a.user_id); names[a.user_id] = u.username if u else f"uid:{a.user_id}"
 
-    user_ids = set(names.keys()) | set(month_by_user.keys()) | set(total_by_user.keys())
+    user_ids = set(names.keys()) | set(month_by_user.keys()) | set(prev_by_user.keys()) | set(total_by_user.keys())
     rows = [
         {
             "user_id": uid,
             "username": names.get(uid, f"uid:{uid}"),
             "month_points": float(month_by_user.get(uid, 0.0)),
+            "prev_month_points": float(prev_by_user.get(uid, 0.0)),
             "total_points": float(total_by_user.get(uid, 0.0)),
         }
         for uid in user_ids

@@ -93,9 +93,50 @@
     .ok{background:#ecfdf5; border-color:#bbf7d0}
     .rev{background:#fef2f2; border-color:#fecaca}
 
-    .md{background:#f8fafc; padding:12px; border-radius:12px; border:1px solid var(--border); overflow-x:auto}
+  .md{background:#f8fafc; padding:12px; border-radius:12px; border:1px solid var(--border); overflow-x:auto; word-break:break-word; overflow-wrap:anywhere}
     .md pre{background:#f1f5f9; padding:10px; border-radius:8px}
     .md code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace}
+
+  /* Clean list UI for cards (announcements/events) */
+  .list{list-style:none; padding:0; margin:8px 0 0}
+  .list .list-item{margin:8px 0}
+  .list .list-link{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#f8fafc; color:#334155; text-decoration:none}
+  .list .list-link:hover{background:#f1f5ff; border-color:#c7d2fe; text-decoration:none}
+  .list .title{font-weight:700; color:#111827}
+  .list .meta{display:flex; gap:6px; align-items:center; white-space:nowrap}
+  .line-clamp-1{display:-webkit-box; -webkit-line-clamp:1; line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
+  /* Inline label helper (override block labels when needed) */
+  .label-inline{display:inline-block; font-weight:700; font-size:13px; color:#334155; margin:0 6px 0 0}
+  /* Toolbar for filters */
+  .toolbar{display:flex; align-items:flex-end; gap:14px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); flex-wrap:wrap}
+  .toolbar .divider{width:1px; height:28px; background:var(--border)}
+  .toolbar .field{display:flex; flex-direction:column; gap:6px; min-width:200px}
+  .toolbar .field.small{min-width:120px}
+  .toolbar .caption{font-size:12px; color:var(--muted); font-weight:700}
+  .toolbar .actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+  /* 控件高度统一，按钮与控件底部对齐，保证“平行” */
+  .toolbar .field select,
+  .toolbar .field input{height:40px}
+  .toolbar .field .seg{height:40px; align-items:center}
+  .toolbar .seg label{padding:9px 14px}
+  /* 等分的分段控件（用于状态：三等分填满可用宽度） */
+  .seg.equal{display:flex; width:100%}
+  .seg.equal label{flex:1 1 0; text-align:center}
+  /* 搜索框不需要太长，给出合理最大宽度 */
+  .toolbar .field.grow{flex:1 1 320px; max-width:560px}
+  .grow{flex:1 1 260px}
+  /* Segmented control for filters */
+  .seg{display:inline-flex; align-items:center; gap:2px; padding:2px; border:1px solid var(--border); border-radius:12px; background:#fff}
+  .seg input{position:absolute; opacity:0; pointer-events:none}
+  .seg label{padding:8px 14px; cursor:pointer; color:#334155; user-select:none; border-radius:10px; transition:background .15s, color .15s}
+  .seg input:checked + label{background:var(--accent); color:#fff}
+  /* Pretty scroll container for lists */
+  .list-scroll{max-height:260px; overflow:auto; -webkit-overflow-scrolling:touch; scrollbar-gutter:stable}
+  .list-scroll{scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent}
+  .list-scroll::-webkit-scrollbar{width:8px; height:8px}
+  .list-scroll::-webkit-scrollbar-thumb{background:#cbd5e1; border-radius:8px}
+  .list-scroll:hover::-webkit-scrollbar-thumb{background:#94a3b8}
+  .list-scroll-lg{max-height:360px}
 
   .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
   .avatar-initial{width:88px; height:88px; border-radius:999px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:800; color:#1f2937; background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
@@ -138,6 +179,16 @@
     .side-nav a{border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:8px 10px}
     /* Helpers */
     .hide-sm{display:none !important}
+    /* Shorter list scroll box on small screens */
+    .list-scroll{max-height:200px}
+    .list-scroll-lg{max-height:300px}
+    .toolbar{gap:10px; box-shadow:none; align-items:stretch}
+    .toolbar .divider{display:none}
+    .toolbar .field{min-width:140px; flex:1 1 100%}
+    .toolbar .actions{width:100%}
+    .toolbar .actions .btn{width:100%}
+    /* Utility: full width on small screens */
+    .full-sm{width:100%}
   }
   /* Card-style tables on mobile */
   @media (max-width: 640px){

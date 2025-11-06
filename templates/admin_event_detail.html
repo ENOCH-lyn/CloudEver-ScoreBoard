@@ -2,25 +2,40 @@
 {% block content %}
 <div class="card">
   <h2>活动详情 — {{ event.name }}</h2>
-  <p class="muted">在此可按照成员查看该活动的提交情况，进入相应提交可进行审核/撤销操作。</p>
-  <table>
-    <thead><tr><th>成员</th><th>已计分</th><th>待审</th><th>被撤销</th><th>提交数</th><th>操作</th></tr></thead>
+  <p class="muted">按“每次提交”列出。可直接进入审核，或查看该提交涉及的题目与积分。</p>
+  <table class="table-cards">
+    <thead><tr><th>时间</th><th>成员</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>状态</th><th>题目</th><th>操作</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
-        <td><a href="/admin/users/{{ r.user.id }}">{{ r.user.username }}</a></td>
-        <td>{{ r.approved }}</td>
-        <td>{{ r.pending }}</td>
-        <td>{{ r.revoked }}</td>
-        <td>{{ r.subs|length }}</td>
+        <td>{{ r.created_at }}</td>
+        <td>{{ r.username }}</td>
+        <td>{{ '%.2f' % r.points }}</td>
+        <td>{{ r.count_ok }}</td>
+        <td>{{ r.count_pending }}</td>
+        <td>{{ r.count_revoked }}</td>
         <td>
-          {% for s in r.subs %}
-            <a class="btn secondary" href="/admin/review/{{ s.id }}">复审</a>
-          {% endfor %}
+          {% if r.reviewed %}
+            <span class="status ok">已审核</span>
+          {% else %}
+            <span class="status pending">未审核</span>
+          {% endif %}
         </td>
+        <td>
+          {% if r.challenges and r.challenges|length > 0 %}
+            <div class="chips">
+              {% for n in r.challenges %}
+                <span class="chip">{{ n }}</span>
+              {% endfor %}
+            </div>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td><a class="btn secondary" href="/admin/review/{{ r.sub_id }}">审核</a></td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="muted">暂无数据</td></tr>
+      <tr><td colspan="9" class="muted">暂无数据</td></tr>
     {% endfor %}
     </tbody>
   </table>

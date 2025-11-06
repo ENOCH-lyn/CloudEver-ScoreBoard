@@ -3,25 +3,47 @@
 <div class="card">
   <h2>审核中心</h2>
   <div class="row">
-    <form class="row" method="get" action="/admin/review">
-      <label>活动</label>
-      <select name="event_id" style="max-width:220px">
-        <option value="">全部</option>
-        {% for e in events %}
-          <option value="{{ e.id }}" {% if e.id == event_id %}selected{% endif %}>{{ e.name }}</option>
-        {% endfor %}
-      </select>
-      <label>成员</label>
-      <input name="q" placeholder="用户名包含..." value="{{ q or '' }}" style="max-width:220px" />
-      <button class="btn" type="submit">筛选</button>
+    <form class="toolbar" method="get" action="/admin/review" style="flex:1">
+      <div class="field" style="flex:1 1 260px; max-width:420px">
+        <div class="caption">活动</div>
+        <select name="event_id" onchange="this.form.submit()">
+          <option value="">全部</option>
+          {% for e in events %}
+            <option value="{{ e.id }}" {% if e.id == event_id %}selected{% endif %}>{{ e.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="flex:1 1 240px; max-width:420px">
+        <div class="caption">状态</div>
+        <div class="seg equal">
+          <input type="radio" id="st_all"   name="status" value="all" {% if status == 'all' %}checked{% endif %} onchange="this.form.submit()" />
+          <label for="st_all">全部</label>
+          <input type="radio" id="st_rev"   name="status" value="reviewed" {% if status == 'reviewed' %}checked{% endif %} onchange="this.form.submit()" />
+          <label for="st_rev">已审核</label>
+          <input type="radio" id="st_unrev" name="status" value="unreviewed" {% if status == 'unreviewed' %}checked{% endif %} onchange="this.form.submit()" />
+          <label for="st_unrev">未审核</label>
+        </div>
+      </div>
+
+      <div class="field grow">
+        <div class="caption">成员</div>
+        <input name="q" placeholder="用户名包含..." value="{{ q or '' }}" />
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">筛选</button>
+      </div>
     </form>
-    {% if event_id %}
-      <form class="row" style="margin-left:auto" method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
-        <button class="btn secondary" type="submit">通过该活动全部待审</button>
-      </form>
-    {% endif %}
   </div>
-  <p class="muted">显示所有提交记录（含已审核），可进入复审并切换通过/撤销状态。</p>
+  {% if event_id %}
+    <div class="row" style="margin-top:8px">
+      <form class="full-sm" method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
+        <button class="btn secondary full-sm" type="submit">通过该活动全部待审</button>
+      </form>
+    </div>
+  {% endif %}
+  <p class="muted">显示审核相关记录，可进入审核并切换审核积分。</p>
   <table class="table-cards">
     <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>待审</th><th>已计分</th><th>被撤销</th><th>操作</th></tr></thead>
     <tbody>
@@ -33,7 +55,7 @@
   <td><span class="pill">{{ r.pending }}</span></td>
   <td><span class="pill">{{ r.ok }}</span></td>
   <td><span class="pill">{{ r.rev }}</span></td>
-  <td><a class="btn secondary" href="/admin/review/{{ r.sub_id }}">复审</a></td>
+  <td><a class="btn secondary" href="/admin/review/{{ r.sub_id }}">审核</a></td>
       </tr>
     {% else %}
       <tr><td colspan="7" class="muted">暂无提交</td></tr>

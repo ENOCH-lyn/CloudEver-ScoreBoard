@@ -12,10 +12,10 @@
   </p>
   <div class="row">
     <form method="post" action="/admin/review/{{ sub.id }}/approve_all">
-      <button class="btn" type="submit">一键通过所有待审题目</button>
+      <button class="btn" type="submit">一键通过</button>
     </form>
     <form method="post" action="/admin/review/{{ sub.id }}/delete" onsubmit="return confirm('确认将此提交移入垃圾箱？');">
-      <button class="btn warn" type="submit">删除该提交</button>
+      <button class="btn warn" type="submit">删除提交</button>
     </form>
   </div>
 </div>

@@ -1,15 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="grid">
-  <div class="card" style="min-height:220px">
+  <div class="card">
     <div class="row" style="justify-content:space-between; align-items:center">
       <div class="kpi">公告</div>
       <span class="pill">{{ announcements|length }} 条</span>
     </div>
-    <ul style="max-height:160px; overflow:auto; margin-top:8px">
+  <ul class="list list-scroll">
       {% for a in announcements %}
-        <li>
-          <a href="/announcement/{{ a.id }}" title="{{ a.title }}">{{ a.title }}</a>
+        <li class="list-item">
+          <a class="list-link" href="/announcement/{{ a.id }}" title="{{ a.title }}">
+            <span class="title line-clamp-1">{{ a.title }}</span>
+            <span class="meta muted">{{ a.updated_at.strftime('%m-%d') if a.updated_at else '' }}</span>
+          </a>
         </li>
       {% else %}
         <li class="muted">暂无公告</li>
@@ -18,9 +21,17 @@
   </div>
   <div class="card">
     <div class="row"><div class="kpi">进行中活动</div><span class="pill">{{ events|length }} 个</span></div>
-    <ul>
+  <ul class="list list-scroll">
       {% for e in events %}
-        <li><a href="/submit/{{ e.id }}">{{ e.name }}</a>{% if e.is_reproduction %} · 复现{% endif %}{% if not e.is_active %} · 已停用{% endif %}</li>
+        <li class="list-item">
+          <a class="list-link" href="/submit/{{ e.id }}">
+            <span class="title line-clamp-1">{{ e.name }}</span>
+            <span class="meta">
+              {% if e.is_reproduction %}<span class="pill">复现</span>{% endif %}
+              {% if not e.is_active %}<span class="pill">已停用</span>{% endif %}
+            </span>
+          </a>
+        </li>
       {% else %}
         <li class="muted">暂无活动</li>
       {% endfor %}
@@ -32,17 +43,18 @@
   <div class="card">
     <h3>主队积分榜</h3>
     <table class="table-cards">
-      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>累计积分</th></tr></thead>
+      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>上月积分</th><th>累计积分</th></tr></thead>
       <tbody>
       {% for row in main_rows %}
         <tr>
           <td>{{ loop.index }}</td>
           <td><a href="/user/{{ row.user_id }}?year={{ year }}&month={{ month }}">{{ row.username }}</a></td>
           <td>{{ '%.2f' % row.month_points }}</td>
+          <td>{{ '%.2f' % (row.prev_month_points or 0) }}</td>
           <td>{{ '%.2f' % row.total_points }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="4" class="muted">暂无数据</td></tr>
+        <tr><td colspan="5" class="muted">暂无数据</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -50,17 +62,18 @@
   <div class="card">
     <h3>子队积分榜</h3>
     <table class="table-cards">
-      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>累计积分</th></tr></thead>
+      <thead><tr><th>#</th><th>队员</th><th>本月积分</th><th>上月积分</th><th>累计积分</th></tr></thead>
       <tbody>
       {% for row in sub_rows %}
         <tr>
           <td>{{ loop.index }}</td>
           <td><a href="/user/{{ row.user_id }}?year={{ year }}&month={{ month }}">{{ row.username }}</a></td>
           <td>{{ '%.2f' % row.month_points }}</td>
+          <td>{{ '%.2f' % (row.prev_month_points or 0) }}</td>
           <td>{{ '%.2f' % row.total_points }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="4" class="muted">暂无数据</td></tr>
+        <tr><td colspan="5" class="muted">暂无数据</td></tr>
       {% endfor %}
       </tbody>
     </table>

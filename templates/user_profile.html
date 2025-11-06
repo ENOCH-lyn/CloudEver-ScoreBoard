@@ -20,7 +20,14 @@
 <div class="card">
   <h3>本月提交明细</h3>
   <table class="table-cards">
-    <thead><tr><th>时间</th><th>活动</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>题目</th></tr></thead>
+    <thead>
+      <tr>
+        <th>时间</th><th>活动</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>题目</th>
+        {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
+          <th>操作</th>
+        {% endif %}
+      </tr>
+    </thead>
     <tbody>
     {% for row in details %}
       <tr>
@@ -41,9 +48,14 @@
             <span class="muted">—</span>
           {% endif %}
         </td>
+        {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
+          <td><a class="btn secondary" href="/admin/review/{{ row.sub_id }}">审核</a></td>
+        {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="7" class="muted">本月暂无提交</td></tr>
+      <tr>
+        <td colspan="{% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}8{% else %}7{% endif %}" class="muted">本月暂无提交</td>
+      </tr>
     {% endfor %}
     </tbody>
   </table>

@@ -16,7 +16,7 @@ def admin_advanced_dashboard(request: Request, db = Depends(get_db), current_use
     require_admin(current_user)
     # Simple KPIs
     active_events = db.query(Event).filter(Event.is_active == True, Event.is_deleted == False).count()
-    recent_subs = db.query(Submission).filter(Submission.is_deleted == False).order_by(Submission.created_at.desc()).limit(10).all()
+    recent_subs = db.query(Submission).filter(Submission.is_deleted == False).order_by(Submission.created_at.desc()).limit(5).all()
     now = datetime.now(TZ)
     year, month = now.year, now.month
     # 本月提交次数
@@ -104,6 +104,7 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
     # filters
     event_id = request.query_params.get("event_id")
     q = (request.query_params.get("q") or "").strip()
+    status = (request.query_params.get("status") or "unreviewed").strip()  # default 显示未审核
     sub_q = db.query(Submission).filter(Submission.is_deleted == False)
     if event_id and event_id.isdigit():
         sub_q = sub_q.filter(Submission.event_id == int(event_id))
@@ -112,9 +113,19 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
     for s in subs:
         if q and s.user and (q.lower() not in s.user.username.lower()):
             continue
+        total_items = len(s.items)
         pending = sum(1 for it in s.items if not it.approved)
         ok = sum(1 for it in s.items if it.approved and not it.revoked)
         rev = sum(1 for it in s.items if it.revoked)
+        manual_set = (getattr(s, 'manual_points', None) is not None)
+        # 已审核判定：
+        # - 若存在条目，则“无待审”即视为已审核（无论通过或撤销都算处理过）；
+        # - 若不存在条目（活动没有题目等），只有设置了手动分数才视为已审核；否则为未审核。
+        is_reviewed = (total_items > 0 and pending == 0) or (total_items == 0 and manual_set)
+        if status == 'reviewed' and not is_reviewed:
+            continue
+        if status == 'unreviewed' and is_reviewed:
+            continue
         rows.append({
             "sub_id": s.id,
             "created_at": s.created_at,
@@ -125,9 +136,41 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
             "rev": rev,
         })
     rows.sort(key=lambda r: r["created_at"], reverse=True)
-    events = db.query(Event).filter(Event.is_deleted == False).order_by(Event.id.desc()).all()
+    # 事件选择下拉按照与“活动管理”相同的优先级排序
+    events = db.query(Event).filter(Event.is_deleted == False).all()
+    now = datetime.now(TZ)
+    def _aware(dt):
+        if not dt:
+            return None
+        try:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=TZ)
+            return dt.astimezone(TZ)
+        except Exception:
+            return dt
+
+    def sort_key(e: Event):
+        has_range = 1 if (e.start_time and e.end_time) else 0
+        if has_range:
+            s = _aware(e.start_time)
+            ed = _aware(e.end_time)
+            if s and ed and s <= now and now < ed:
+                group = 0
+                dist = (now - s).total_seconds() if s else 0
+            else:
+                group = 1
+                if ed and ed < now:
+                    dist = (now - ed).total_seconds()
+                else:
+                    dist = (s - now).total_seconds() if s else 0
+        else:
+            group = 2
+            dist = float('inf')
+        return (-has_range, group, dist, e.id * -1)
+
+    events.sort(key=sort_key)
     eid = int(event_id) if event_id and event_id.isdigit() else None
-    return render_template("admin_review.html", title="审核中心", current_user=current_user, rows=rows, events=events, event_id=eid, q=q)
+    return render_template("admin_review.html", title="审核中心", current_user=current_user, rows=rows, events=events, event_id=eid, q=q, status=status)
 
 
 @router.get("/admin/review/{sub_id}", response_class=HTMLResponse)
@@ -208,6 +251,44 @@ def admin_events(request: Request, db = Depends(get_db), current_user = Depends(
     events = db.query(Event).filter(Event.is_deleted == False).all()
     types = db.query(EventType).filter(EventType.is_deleted == False, EventType.is_active == True).order_by(EventType.name.asc()).all()
     now = datetime.now(TZ)
+    # 排序规则：
+    # 1) 有时间范围的优先（同时有 start_time 和 end_time）
+    # 2) 正在进行的优先（start <= now < end）
+    # 3) 结束/未来的次之（就近原则：最近结束/最近开始的更靠前）
+    # 4) 无时间范围的最后
+    def _aware(dt):
+        if not dt:
+            return None
+        try:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=TZ)
+            return dt.astimezone(TZ)
+        except Exception:
+            return dt
+
+    def sort_key(e: Event):
+        has_range = 1 if (e.start_time and e.end_time) else 0
+        # 分组优先级：0 进行中；1 结束/未来；2 无时间范围
+        if has_range:
+            s = _aware(e.start_time)
+            ed = _aware(e.end_time)
+            if s and ed and s <= now and now < ed:
+                group = 0
+                dist = (now - s).total_seconds() if s else 0
+            else:
+                group = 1
+                if ed and ed < now:  # 已结束：越接近现在越靠前
+                    dist = (now - ed).total_seconds()
+                else:  # 未来：越临近开始越靠前
+                    dist = (s - now).total_seconds() if s else 0
+        else:
+            group = 2
+            dist = float('inf')
+        # Python 默认升序：希望优先级低的数值更小，因此 group 已按优先度编码
+        # has_range 为 1 的应该靠前，因此取 -has_range 作为第一关键字
+        return (-has_range, group, dist, e.id * -1)
+
+    events.sort(key=sort_key)
     return render_template("admin_events.html", title="活动管理", current_user=current_user, events=events, year=now.year, month=now.month, types=types)
 
 
@@ -310,17 +391,39 @@ def admin_event_detail(event_id: int, request: Request, db = Depends(get_db), cu
     event = db.get(Event, event_id)
     if not event:
         raise HTTPException(404, "活动不存在")
-    users = db.query(User).filter(User.is_deleted == False).order_by(User.username.asc()).all()
+    # 改为“按提交列一行”视图
+    subs = (
+        db.query(Submission)
+        .filter(Submission.event_id == event_id, Submission.is_deleted == False)
+        .order_by(Submission.created_at.desc())
+        .all()
+    )
     rows = []
-    for u in users:
-        subs = db.query(Submission).filter(Submission.user_id == u.id, Submission.event_id == event_id, Submission.is_deleted == False).all()
-        total_items = sum(len(s.items) for s in subs)
-        if total_items == 0:
-            continue
-        approved = sum(1 for s in subs for it in s.items if it.approved and not it.revoked)
-        pending = sum(1 for s in subs for it in s.items if not it.approved)
-        revoked = sum(1 for s in subs for it in s.items if it.revoked)
-        rows.append({"user": u, "approved": approved, "pending": pending, "revoked": revoked, "subs": subs})
+    for s in subs:
+        total_items = len(s.items)
+        count_ok = sum(1 for it in s.items if it.approved and not it.revoked)
+        count_pending = sum(1 for it in s.items if not it.approved)
+        count_revoked = sum(1 for it in s.items if it.revoked)
+        manual_set = (getattr(s, 'manual_points', None) is not None)
+        is_reviewed = (total_items > 0 and count_pending == 0) or (total_items == 0 and manual_set)
+        ch_names = []
+        for it in s.items:
+            try:
+                if it.challenge and it.challenge.name:
+                    ch_names.append(it.challenge.name)
+            except Exception:
+                pass
+        rows.append({
+            "sub_id": s.id,
+            "created_at": s.created_at,
+            "username": s.user.username if s.user else "—",
+            "points": compute_submission_points(s),
+            "count_ok": count_ok,
+            "count_pending": count_pending,
+            "count_revoked": count_revoked,
+            "reviewed": is_reviewed,
+            "challenges": ch_names,
+        })
     return render_template("admin_event_detail.html", title=f"活动详情 — {event.name}", current_user=current_user, event=event, rows=rows)
 
 

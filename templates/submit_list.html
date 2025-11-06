@@ -3,11 +3,16 @@
 <div class="card">
   <h2>提交成绩</h2>
   <p class="muted">提交后将进入管理员审核，通过后才计分。</p>
-  <ul>
+  <ul class="list">
     {% for e in events %}
-      <li>
-        <a href="/submit/{{ e.id }}">{{ e.name }}</a>
-        <span class="muted"> — 权重 {{ e.weight }}{% if e.is_reproduction %}，复现{% endif %}</span>
+      <li class="list-item">
+        <a class="list-link" href="/submit/{{ e.id }}">
+          <span class="title line-clamp-1">{{ e.name }}</span>
+          <span class="meta">
+            <span class="pill">权重 {{ e.weight }}</span>
+            {% if e.is_reproduction %}<span class="pill">复现</span>{% endif %}
+          </span>
+        </a>
       </li>
     {% else %}
       <li class="muted">暂无可提交的活动</li>
