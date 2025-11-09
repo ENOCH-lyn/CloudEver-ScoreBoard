@@ -13,4 +13,6 @@ TZ = timezone(timedelta(hours=9))  # 亚洲/东京（UTC+9）
 
 MAX_AVATAR_SIZE = 1 * 1024 * 1024  # 1MB
 
-CATEGORIES = ["web", "pwn", "crypto", "rev", "misc"]
+CATEGORIES = ["web", "pwn", "crypto", "rev", "misc","others"]
+
+VERSION = "1.2.0"

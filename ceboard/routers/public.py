@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from ..deps import get_db, get_current_user, render_template
 from ..models import Event, Submission, SubmissionItem, User, Announcement, Setting
 from ..utils import leaderboard_month_and_total, md_to_html, compute_submission_points
-from ..config import TZ
+from ..config import TZ,VERSION
 
 
 router = APIRouter()
@@ -135,6 +135,8 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
             "points": compute_submission_points(s),
             "wp_url": s.wp_url,
             "challenges": ch_names,
+            "rejected": getattr(s, 'rejected', False),
+            "rejected_reason": getattr(s, 'rejected_reason', None),
         })
 
     return render_template(
@@ -147,4 +149,17 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
         month_points=sum_points(subs_month),
         total_points=sum_points(subs_total),
         details=details,
+    )
+
+
+@router.get("/about", response_class=HTMLResponse)
+def about_page(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    return render_template(
+        "about.html",
+        title="关于",
+        current_user=current_user,
+        version=VERSION,
+        author="ENOCH，lally",
+        website_url="https://cloudever.top/",
+        repo_url="https://github.com/ENOCH-lyn/CloudEver-ScoreBoard",
     )

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="grid">
-  <div class="card">
+<div class="admin-user-detail layout-row" style="display:flex; align-items:flex-start; gap:18px; flex-wrap:nowrap">
+  <div class="card side-panel">
     <h2>成员详情 — {{ user.username }}</h2>
     <p class="muted">总条目：{{ total_items }} · 已计分：{{ approved }} · 待审：{{ pending }} · 被撤销：{{ revoked }}</p>
     <div class="row">
@@ -33,25 +33,59 @@
     {% endif %}
     {% endif %}
   </div>
-  <div class="card">
+  <div class="card main-panel" style="flex:1; min-width:0">
     <h3>提交记录</h3>
-    <table>
-      <thead><tr><th>时间</th><th>活动</th><th>条目</th><th>操作</th></tr></thead>
+    <table class="table-cards">
+      <thead><tr><th>时间</th><th>活动</th><th>状态</th><th>分数</th><th>题目</th><th>待审</th><th>已计分</th><th>撤销</th><th>操作</th></tr></thead>
       <tbody>
-      {% for s in subs %}
+      {% for r in rows %}
         <tr>
-          <td>{{ s.created_at }}</td>
-          <td>{{ s.event.name if s.event else '—' }}</td>
-          <td>{{ s.items|length }}</td>
-          <td><a class="btn secondary" href="/admin/review/{{ s.id }}">查看</a></td>
+          <td data-label="时间">{{ r.created_at }}</td>
+          <td data-label="活动">{{ r.event }}</td>
+          <td data-label="状态">
+            {% if r.rejected %}<span class="status rev">已驳回</span>
+            {% elif r.reviewed %}<span class="status ok" style="background:#ecfdf5; border-color:#bbf7d0">已审核</span>
+            {% else %}<span class="status pending">未审核</span>{% endif %}
+          </td>
+          <td data-label="分数">{{ r.points if r.points is not none else '-' }}</td>
+          <td data-label="题目">
+            {% if r.challenges and r.challenges|length>0 %}
+              <div class="chips" style="gap:4px">{% for name in r.challenges %}<span class="chip">{{ name }}</span>{% endfor %}</div>
+            {% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td data-label="待审"><span class="pill">{{ r.pending }}</span></td>
+          <td data-label="已计分"><span class="pill">{{ r.ok }}</span></td>
+          <td data-label="撤销"><span class="pill">{{ r.rev }}</span></td>
+          <td data-label="操作"><a class="btn secondary" href="/admin/review/{{ r.id }}">审核</a></td>
         </tr>
       {% else %}
-        <tr><td colspan="4" class="muted">暂无提交</td></tr>
+        <tr><td colspan="9" class="muted">暂无提交</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+<style>
+.admin-user-detail .side-panel{flex:0 0 320px; max-width:340px}
+@media (max-width: 900px){
+  .admin-user-detail{flex-direction:column;}
+  .admin-user-detail .side-panel{flex:1 1 auto; max-width:none; width:100%;}
+  .admin-user-detail .main-panel{width:100%;}
+  /* 移动端隐藏表头，使用 data-label 展示字段名 */
+  .admin-user-detail table.table-cards{display:block; overflow-x:auto;}
+  .admin-user-detail table.table-cards thead{display:none;}
+  .admin-user-detail table.table-cards tbody tr{display:block; border:1px solid #e5e7eb; border-radius:10px; padding:8px 10px; margin-bottom:10px;}
+  .admin-user-detail table.table-cards tbody td{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 4px;}
+  .admin-user-detail table.table-cards tbody td::before{content:attr(data-label); color:#64748b; font-size:12px;}
+  /* 题目列可换行展示 */
+  .admin-user-detail table.table-cards tbody td[data-label="题目"]{align-items:flex-start;}
+  .admin-user-detail table.table-cards tbody td[data-label="题目"] .chips{margin-top:4px}
+}
+@media (max-width: 600px){
+  .admin-user-detail .side-panel h2{font-size:20px;}
+  .admin-user-detail table.table-cards th, .admin-user-detail table.table-cards td{padding:6px 8px;}
+}
+</style>
 <script>
   const adminChoose = document.getElementById('adminChooseAvatar');
   const adminInput = document.getElementById('adminAvatarInput');

@@ -12,26 +12,22 @@
   </p>
   <div class="row">
     <form method="post" action="/admin/review/{{ sub.id }}/approve_all">
-      <button class="btn" type="submit">一键通过</button>
+      <button class="btn" type="submit" {% if sub.rejected %}disabled style="opacity:.5; cursor:not-allowed"{% endif %}>一键通过</button>
     </form>
     <form method="post" action="/admin/review/{{ sub.id }}/delete" onsubmit="return confirm('确认将此提交移入垃圾箱？');">
       <button class="btn warn" type="submit">删除提交</button>
     </form>
+    {% if not sub.rejected %}
+      <button class="btn secondary" type="button" onclick="openRejectModal()">驳回提交</button>
+    {% else %}
+      <form method="post" action="/admin/review/{{ sub.id }}/unreject" style="display:inline" onsubmit="return confirm('确认取消驳回？该提交会重新进入未审核状态');">
+        <button class="btn secondary" type="submit">取消驳回</button>
+      </form>
+    {% endif %}
+  <button class="btn" type="button" onclick="openScoreModal()" {% if sub.rejected %}disabled style="opacity:.5; cursor:not-allowed" title="已驳回，不能设置得分"{% endif %}>设置得分</button>
   </div>
 </div>
 
-<div class="card">
-  <h3>最终得分</h3>
-  <p class="muted">手动设置可覆盖按题目累计的分数；适用于仅提交 WP 的活动或需要人工调整的情况。</p>
-  <form class="row" method="post" action="/admin/review/{{ sub.id }}/set_points">
-    <label>手动分数</label>
-    <input name="manual_points" value="{{ '%.2f' % sub.manual_points if sub.manual_points is not none else '' }}" style="max-width:160px" placeholder="留空表示按题目累计" />
-  <button class="btn" type="submit">保存分数</button>
-  {% if sub.manual_points is not none %}
-  <button class="btn secondary" name="clear" value="1" type="submit">清除手动分数</button>
-  {% endif %}
-  </form>
-</div>
 
 <div class="card">
   <h3>题目列表</h3>
@@ -52,12 +48,12 @@
         <td class="row">
           {% if not it.approved %}
             <form method="post" action="/admin/review/item/{{ it.id }}/toggle_approve">
-              <button class="btn" type="submit">通过</button>
+              <button class="btn" type="submit" {% if sub.rejected %}disabled style="opacity:.5; cursor:not-allowed"{% endif %}>通过</button>
             </form>
           {% endif %}
           {% if it.approved %}
             <form method="post" action="/admin/review/item/{{ it.id }}/toggle_revoke">
-              <button class="btn warn" type="submit">{{ '恢复分数' if it.revoked else '撤销分数' }}</button>
+              <button class="btn warn" type="submit" {% if sub.rejected %}disabled style="opacity:.5; cursor:not-allowed"{% endif %}>{{ '恢复分数' if it.revoked else '撤销分数' }}</button>
             </form>
           {% endif %}
         </td>
@@ -68,4 +64,48 @@
     </tbody>
   </table>
 </div>
+<div id="rejectModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(3px); z-index:1500; align-items:center; justify-content:center; padding:20px;">
+  <div style="width:100%; max-width:560px; background:#fff; padding:28px 30px; border-radius:20px; box-shadow:0 12px 36px -8px rgba(0,0,0,.35); max-height:80vh; overflow:auto;">
+    <h3 style="margin-top:0">填写驳回理由</h3>
+    <p class="muted" style="margin-top:4px">请说明本次驳回的原因（将发送给成员）。</p>
+    <form method="post" action="/admin/review/{{ sub.id }}/reject" onsubmit="return submitRejectReason()">
+      <textarea id="rejectReason" name="reason" rows="6" style="width:100%; resize:vertical" placeholder="例如：WP 不完整 / 题目未按要求格式 / 请补充截图等" required></textarea>
+      <div class="row" style="justify-content:flex-end; margin-top:14px; gap:10px">
+        <button class="btn secondary" type="button" onclick="closeRejectModal()">取消</button>
+        <button class="btn warn" type="submit">确认驳回</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div id="scoreModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(3px); z-index:1500; align-items:center; justify-content:center; padding:20px;">
+  <div style="width:100%; max-width:520px; background:#fff; padding:24px 26px; border-radius:18px; box-shadow:0 12px 36px -8px rgba(0,0,0,.35); max-height:80vh; overflow:auto;">
+    <h3 style="margin-top:0">设置最终得分</h3>
+    <p class="muted" style="margin-top:4px">手动设置将覆盖按题目累计的分数；留空则按题目累计。</p>
+    <form method="post" action="/admin/review/{{ sub.id }}/set_points">
+      <input name="manual_points" value="{{ '%.2f' % sub.manual_points if sub.manual_points is not none else '' }}" style="width:100%; max-width:220px" placeholder="例如：100 或 95.5" />
+      <div class="row" style="justify-content:flex-end; margin-top:14px; gap:10px">
+        {% if sub.manual_points is not none %}
+        <button class="btn secondary" name="clear" value="1" type="submit">清除手动分数</button>
+        {% endif %}
+        <button class="btn secondary" type="button" onclick="closeScoreModal()">取消</button>
+        <button class="btn" type="submit">保存</button>
+      </div>
+    </form>
+  </div>
+  </div>
+<script>
+  function openRejectModal(){ document.getElementById('rejectModal').style.display='flex'; }
+  function closeRejectModal(){ document.getElementById('rejectModal').style.display='none'; }
+  function openScoreModal(){ document.getElementById('scoreModal').style.display='flex'; }
+  function closeScoreModal(){ document.getElementById('scoreModal').style.display='none'; }
+  function submitRejectReason(){
+    const v = document.getElementById('rejectReason').value.trim();
+    if(!v){ alert('请填写理由'); return false; }
+    return true;
+  }
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeRejectModal(); }});
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeScoreModal(); }});
+  document.addEventListener('click', e=>{ const m=document.getElementById('rejectModal'); if(m && m.style.display!=='none' && e.target===m){ closeRejectModal(); }});
+  document.addEventListener('click', e=>{ const m=document.getElementById('scoreModal'); if(m && m.style.display!=='none' && e.target===m){ closeScoreModal(); }});
+</script>
 {% endblock %}

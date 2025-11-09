@@ -6,8 +6,10 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from ..deps import get_db, get_current_user, require_admin, render_template, require_admin_or_reviewer
 from ..models import Event, Challenge, Submission, SubmissionItem, User, Announcement, PointAdjustment, EventType
 from ..models import Setting
+from ..models import Notification
+import uuid
 from ..config import TZ, CATEGORIES
-from ..utils import compute_submission_points
+from ..utils import compute_submission_points, now_tokyo
 
 
 router = APIRouter()
@@ -44,6 +46,249 @@ def admin_advanced_dashboard(request: Request, db = Depends(get_db), current_use
         main_count=main_count,
         sub_count=sub_count,
     )
+
+
+@router.get("/admin/notifications", response_class=HTMLResponse)
+def admin_notifications_page(request: Request, page: int = 1, db = Depends(get_db), current_user = Depends(get_current_user)):
+    """分组显示通知：同一 batch_id 合并，直接展示已读/未读用户名列表。"""
+    require_admin(current_user)
+    q = (request.query_params.get("q") or "").strip()
+    user_id = request.query_params.get("user_id")
+    base_q = db.query(Notification).filter(Notification.is_deleted == False)
+    if q:
+        base_q = base_q.filter(Notification.content.contains(q))
+    # 先取所有（用于分组统计再分页）
+    all_notifs = base_q.order_by(Notification.created_at.desc()).all()
+    groups = {}
+    for n in all_notifs:
+        # user filter：只保留包含该用户的分组（统计该用户时仍展示整个分组，便于批量操作）
+        if user_id and user_id.isdigit() and n.user_id != int(user_id):
+            continue
+        bid = n.batch_id or f"single-{n.id}"
+        g = groups.get(bid)
+        if not g:
+            groups[bid] = {
+                'batch_id': bid,
+                'title': n.title or '通知',
+                'created_at': n.created_at,
+                'content': n.content,
+                'type': n.type,
+                'items': [],
+                'read_count': 0,
+                'total_count': 0,
+            }
+            g = groups[bid]
+        g['items'].append(n)
+    # 补充统计与用户名
+    rows = []
+    for bid, g in groups.items():
+        g['total_count'] = len(g['items'])
+        g['read_count'] = sum(1 for it in g['items'] if it.read_at is not None)
+        # 已读/未读用户名（全部显示，交给前端换行显示）
+        read_users, unread_users = [], []
+        for it in g['items']:
+            u = db.get(User, it.user_id)
+            name = (u.username if u else f"uid:{it.user_id}")
+            (read_users if it.read_at else unread_users).append(name)
+        rows.append({
+            'batch_id': bid,
+            'title': g['title'],
+            'created_at': g['created_at'],
+            'read_count': g['read_count'],
+            'total_count': g['total_count'],
+            'read_users': read_users,
+            'unread_users': unread_users,
+            'content': g['content'],
+            'type': g['type'],
+        })
+    # 按创建时间排序
+    rows.sort(key=lambda r: r['created_at'], reverse=True)
+    # 分页（对分组后的 rows）
+    page = max(1, int(page or 1))
+    page_size = 10
+    total = len(rows)
+    paged = rows[(page-1)*page_size: page*page_size]
+    users = db.query(User).filter(User.is_deleted == False).all()
+    return render_template(
+        "admin_notifications.html",
+        title="通知管理",
+        current_user=current_user,
+        rows=paged,
+        users=users,
+        q=q,
+        user_id=int(user_id) if user_id and user_id.isdigit() else None,
+        page=page,
+        total=total,
+    )
+
+
+## ---- duplicate create routes (later copy) removed ----
+
+
+@router.get("/admin/notifications/create", response_class=HTMLResponse)
+def admin_notifications_create_page(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    """发布通知页面：需要位于动态分组路由之前，防止被 {batch_id} 捕获。"""
+    require_admin(current_user)
+    users = db.query(User).filter(User.is_deleted == False, User.is_active == True).order_by(User.username.asc()).all()
+    return render_template(
+        "admin_notifications_create.html",
+        title="发布通知",
+        current_user=current_user,
+        users=users,
+        msg=request.query_params.get("msg"),
+    )
+
+@router.post("/admin/notifications/create")
+def admin_notifications_create(title: str = Form(...), content: str = Form(...), user_ids: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    """发布通知：若未选择具体成员则广播。使用 batch_id 进行分组。"""
+    require_admin(current_user)
+    title_clean = (title or '').strip()
+    text = (content or '').strip()
+    if not title_clean or not text:
+        return RedirectResponse("/admin/notifications/create?msg=标题和内容不能为空", status_code=302)
+    all_users = db.query(User).filter(User.is_deleted == False, User.is_active == True).all()
+    ids = [int(i) for i in (user_ids or '').split(',') if i.strip().isdigit()]
+    target_users = all_users if not ids else [u for u in all_users if u.id in ids]
+    if ids and not target_users:
+        return RedirectResponse("/admin/notifications/create?msg=成员选择无效", status_code=302)
+    batch_id = f"b{int(datetime.now(TZ).timestamp())}_{uuid.uuid4().hex[:8]}"
+    for u in target_users:
+        db.add(Notification(user_id=u.id, type='system', title=title_clean, content=text, batch_id=batch_id))
+    db.commit()
+    return RedirectResponse(f"/admin/notifications?msg=已发布{len(target_users)}条", status_code=302)
+
+@router.get("/admin/notifications/{batch_id}", response_class=HTMLResponse)
+def admin_notifications_detail(batch_id: str, request: Request = None, db = Depends(get_db), current_user = Depends(get_current_user)):
+    """查看某个通知分组的阅读明细。"""
+    require_admin(current_user)
+    if batch_id == 'create':  # 防止与创建路径冲突
+        raise HTTPException(404, "无效通知标识")
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == False).order_by(Notification.created_at.asc()).all()
+    # 兼容单条通知（无 batch_id），形如 single-<id>
+    if not notifs and batch_id.startswith("single-"):
+        try:
+            nid = int(batch_id.split("-", 1)[1])
+        except Exception:
+            nid = None
+        if nid:
+            one = db.get(Notification, nid)
+            if one and not one.is_deleted:
+                notifs = [one]
+    if not notifs:
+        raise HTTPException(404, "通知分组不存在")
+    title = notifs[0].title or "通知"
+    content = notifs[0].content
+    read_users, unread_users = [], []
+    for n in notifs:
+        u = db.get(User, n.user_id)
+        name = (u.username if u else f"uid:{n.user_id}")
+        (read_users if n.read_at else unread_users).append(name)
+    return render_template(
+        "admin_notifications_detail.html",
+        title=f"通知阅读明细",
+        current_user=current_user,
+        batch_id=batch_id,
+        notif_title=title,
+        notif_content=content,
+        read_users=read_users,
+        unread_users=unread_users,
+        total=len(notifs),
+        read=len(read_users)
+    )
+
+
+@router.get("/admin/notifications/{batch_id}/edit", response_class=HTMLResponse)
+def admin_notifications_edit_page(batch_id: str, request: Request = None, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    if batch_id == 'create':
+        raise HTTPException(404, "无效通知标识")
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == False).order_by(Notification.created_at.desc()).all()
+    # 兼容 single-<id>
+    single_mode = False
+    if not notifs and batch_id.startswith("single-"):
+        try:
+            nid = int(batch_id.split("-", 1)[1])
+        except Exception:
+            nid = None
+        if nid:
+            one = db.get(Notification, nid)
+            if one and not one.is_deleted:
+                notifs = [one]
+                single_mode = True
+    if not notifs:
+        raise HTTPException(404, "通知分组不存在")
+    # 收件人用户名列表
+    usernames = []
+    for n in notifs:
+        u = db.get(User, n.user_id)
+        if u: usernames.append(u.username)
+    users = db.query(User).filter(User.is_deleted == False, User.is_active == True).order_by(User.username.asc()).all()
+    return render_template(
+        "admin_notifications_edit.html",
+        title="编辑通知",
+        current_user=current_user,
+        batch_id=batch_id,
+        users=users,
+        usernames=usernames,
+        title_value=(notifs[0].title or ""),
+        content_value=(notifs[0].content or "")
+    )
+
+
+
+
+@router.post("/admin/notifications/{batch_id}/edit")
+def admin_notifications_edit(batch_id: str, title: str = Form(""), content: str = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+    """批量编辑：修改同一 batch 的全部通知内容与标题保持不变。"""
+    require_admin(current_user)
+    if batch_id == 'create':
+        raise HTTPException(404, "无效通知标识")
+    title_clean = (title or '').strip()
+    text = (content or '').strip()
+    if not text:
+        return RedirectResponse("/admin/notifications?msg=内容不能为空", status_code=302)
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == False).all()
+    if not notifs and batch_id.startswith("single-"):
+        try:
+            nid = int(batch_id.split("-", 1)[1])
+        except Exception:
+            nid = None
+        if nid:
+            one = db.get(Notification, nid)
+            if one and not one.is_deleted:
+                notifs = [one]
+    if not notifs:
+        raise HTTPException(404, "分组不存在")
+    for n in notifs:
+        if title_clean:
+            n.title = title_clean
+        n.content = text
+    db.commit()
+    return RedirectResponse("/admin/notifications?msg=已批量保存", status_code=302)
+
+
+@router.post("/admin/notifications/{batch_id}/delete")
+def admin_notifications_delete(batch_id: str, db = Depends(get_db), current_user = Depends(get_current_user)):
+    """批量删除：软删除进入垃圾箱。"""
+    require_admin(current_user)
+    if batch_id == 'create':
+        return RedirectResponse("/admin/notifications?msg=无效通知标识", status_code=302)
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == False).all()
+    if not notifs and batch_id.startswith("single-"):
+        try:
+            nid = int(batch_id.split("-", 1)[1])
+        except Exception:
+            nid = None
+        if nid:
+            one = db.get(Notification, nid)
+            if one and not one.is_deleted:
+                notifs = [one]
+    if not notifs:
+        return RedirectResponse("/admin/notifications?msg=分组不存在或已删除", status_code=302)
+    for n in notifs:
+        n.is_deleted = True
+    db.commit()
+    return RedirectResponse("/admin/notifications?msg=已批量删除", status_code=302)
 
 
 # 活动类型管理（高级管理）
@@ -121,11 +366,14 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
         # 已审核判定：
         # - 若存在条目，则“无待审”即视为已审核（无论通过或撤销都算处理过）；
         # - 若不存在条目（活动没有题目等），只有设置了手动分数才视为已审核；否则为未审核。
-        is_reviewed = (total_items > 0 and pending == 0) or (total_items == 0 and manual_set)
+        # - 业务变更：被驳回的提交也视为“已审核”；当成员重新编辑后会清除驳回标记并重新进入“未审核”。
+        is_reviewed = getattr(s, 'rejected', False) or (total_items > 0 and pending == 0) or (total_items == 0 and manual_set)
         if status == 'reviewed' and not is_reviewed:
             continue
         if status == 'unreviewed' and is_reviewed:
             continue
+        # 分数：仅非驳回且视为“已审核”的显示分数，否则为 None
+        pts = compute_submission_points(s) if (is_reviewed and not getattr(s, 'rejected', False)) else None
         rows.append({
             "sub_id": s.id,
             "created_at": s.created_at,
@@ -134,6 +382,9 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
             "pending": pending,
             "ok": ok,
             "rev": rev,
+            "rejected": getattr(s, 'rejected', False),
+            "reviewed": is_reviewed,
+            "points": pts,
         })
     rows.sort(key=lambda r: r["created_at"], reverse=True)
     # 事件选择下拉按照与“活动管理”相同的优先级排序
@@ -187,6 +438,9 @@ def admin_review_detail(sub_id: int, request: Request, db = Depends(get_db), cur
 def admin_review_approve_all(sub_id: int, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
     items = db.query(SubmissionItem).filter(SubmissionItem.submission_id == sub_id).all()
+    sub = db.get(Submission, sub_id)
+    if sub and getattr(sub, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=该提交已被驳回，需成员重新提交后才能通过", status_code=302)
     for it in items:
         if not it.approved:
             it.approved = True
@@ -215,6 +469,9 @@ def admin_toggle_approve(item_id: int, db = Depends(get_db), current_user = Depe
     it = db.get(SubmissionItem, item_id)
     if not it:
         raise HTTPException(404, "条目不存在")
+    # 驳回状态下禁止操作
+    if it.submission and getattr(it.submission, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{it.submission_id}?msg=该提交已被驳回，不能操作条目", status_code=302)
     it.approved = not it.approved
     if not it.approved:
         it.revoked = False
@@ -228,6 +485,8 @@ def admin_toggle_revoke(item_id: int, db = Depends(get_db), current_user = Depen
     it = db.get(SubmissionItem, item_id)
     if not it:
         raise HTTPException(404, "条目不存在")
+    if it.submission and getattr(it.submission, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{it.submission_id}?msg=该提交已被驳回，不能操作条目", status_code=302)
     if it.approved:
         it.revoked = not it.revoked
     db.commit()
@@ -243,6 +502,107 @@ def admin_delete_submission(sub_id: int, db = Depends(get_db), current_user = De
     sub.is_deleted = True
     db.commit()
     return RedirectResponse("/admin/review?msg=提交已移入垃圾箱", status_code=302)
+
+
+@router.post("/admin/review/{sub_id}/reject")
+def admin_reject_submission(sub_id: int, reason: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    """驳回整条提交：直接应用驳回。"""
+    require_admin_or_reviewer(current_user)
+    sub = db.get(Submission, sub_id)
+    if not sub or sub.is_deleted:
+        return RedirectResponse("/admin/review?msg=提交不存在或已删除", status_code=302)
+    if getattr(sub, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=已处于驳回状态", status_code=302)
+    r = (reason or '').strip() or '未填写理由'
+    sub.rejected = True
+    sub.rejected_reason = r
+    sub.rejected_at = now_tokyo()
+    sub.rejected_by_id = current_user.id
+    sub.manual_points = None
+    # 构造更可读标题内容
+    event_name = sub.event.name if sub.event else '活动'
+    # 列出前三个题目名
+    ch_names = []
+    try:
+        for it in sub.items[:3]:
+            if it.challenge and it.challenge.name:
+                ch_names.append(it.challenge.name)
+    except Exception:
+        pass
+    ch_part = (" · ".join(ch_names)) if ch_names else "提交"
+    title = f"提交被驳回 - {event_name}"
+    content = f"你的 {event_name} {ch_part} 已被驳回。\n\n理由：\n{r}"
+    db.add(Notification(user_id=sub.user_id, type='rejection', title=title, content=content, related_id=sub.id))
+    db.commit()
+    return RedirectResponse(f"/admin/review/{sub_id}?msg=已驳回并发送通知", status_code=302)
+
+
+@router.get("/admin/review/{sub_id}/reject_confirm", response_class=HTMLResponse)
+def admin_reject_confirm(sub_id: int, request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin_or_reviewer(current_user)
+    sub = db.get(Submission, sub_id)
+    if not sub or sub.is_deleted:
+        raise HTTPException(404, "提交不存在")
+    reason = (request.query_params.get('reason') or '').strip()
+    if not reason:
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=理由缺失，重新提交", status_code=302)
+    return render_template("admin_reject_confirm.html", title="确认驳回", current_user=current_user, sub=sub, reason=reason)
+
+
+@router.post("/admin/review/{sub_id}/reject_apply")
+def admin_reject_apply(sub_id: int, reason: str = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin_or_reviewer(current_user)
+    sub = db.get(Submission, sub_id)
+    if not sub or sub.is_deleted:
+        return RedirectResponse("/admin/review?msg=提交不存在或已删除", status_code=302)
+    if getattr(sub, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=已处于驳回状态", status_code=302)
+    from ..models import Notification
+    from ..utils import now_tokyo
+    reason_clean = (reason or '').strip() or '未填写理由'
+    sub.rejected = True
+    sub.rejected_reason = reason_clean
+    sub.rejected_at = now_tokyo()
+    sub.rejected_by_id = current_user.id
+    sub.manual_points = None
+    # 构造更可读标题内容
+    event_name = sub.event.name if sub.event else '活动'
+    # 列出前三个题目名
+    ch_names = []
+    try:
+        for it in sub.items[:3]:
+            if it.challenge and it.challenge.name:
+                ch_names.append(it.challenge.name)
+    except Exception:
+        pass
+    ch_part = (" · ".join(ch_names)) if ch_names else "提交"
+    title = f"提交被驳回 - {event_name}"
+    content = f"你的 {event_name} {ch_part} 已被驳回。\n\n理由：\n{reason_clean}"
+    db.add(Notification(user_id=sub.user_id, type='rejection', title=title, content=content, related_id=sub.id))
+    db.commit()
+    return RedirectResponse(f"/admin/review/{sub_id}?msg=已驳回并发送通知", status_code=302)
+
+
+@router.post("/admin/review/{sub_id}/unreject")
+def admin_unreject_submission(sub_id: int, db = Depends(get_db), current_user = Depends(get_current_user)):
+    """取消驳回：清除驳回标记并将关联驳回通知移入垃圾箱。"""
+    require_admin_or_reviewer(current_user)
+    sub = db.get(Submission, sub_id)
+    if not sub or sub.is_deleted:
+        return RedirectResponse("/admin/review?msg=提交不存在或已删除", status_code=302)
+    if not getattr(sub, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=该提交不在驳回状态", status_code=302)
+    # 清除驳回状态
+    sub.rejected = False
+    sub.rejected_reason = None
+    sub.rejected_at = None
+    sub.rejected_by_id = None
+    # 将相关驳回通知软删除
+    notifs = db.query(Notification).filter(Notification.type == 'rejection', Notification.related_id == sub_id, Notification.is_deleted == False).all()
+    for n in notifs:
+        n.is_deleted = True
+    db.commit()
+    return RedirectResponse(f"/admin/review/{sub_id}?msg=已取消驳回", status_code=302)
 
 
 @router.get("/admin/events", response_class=HTMLResponse)
@@ -492,6 +852,9 @@ def admin_set_submission_points(sub_id: int, manual_points: float = Form(None), 
     sub = db.get(Submission, sub_id)
     if not sub:
         raise HTTPException(404, "提交不存在")
+    # 驳回状态下禁止设置或清除手动分数
+    if getattr(sub, 'rejected', False):
+        return RedirectResponse(f"/admin/review/{sub_id}?msg=该提交已被驳回，不能设置得分", status_code=302)
     if clear and int(clear) == 1:
         sub.manual_points = None
     else:
@@ -609,6 +972,25 @@ def admin_trash(request: Request, db = Depends(get_db), current_user = Depends(g
     trashed_subs = db.query(Submission).filter(Submission.is_deleted == True).order_by(Submission.id.desc()).all()
     trashed_users = db.query(User).filter(User.is_deleted == True).order_by(User.username.asc()).all()
     trashed_adjs = db.query(PointAdjustment).filter(PointAdjustment.is_deleted == True).order_by(PointAdjustment.created_at.desc()).all()
+    # 通知（垃圾箱）：按 batch 分组
+    trashed_notifs_q = db.query(Notification).filter(Notification.is_deleted == True).order_by(Notification.created_at.desc()).all()
+    notif_groups = {}
+    for n in trashed_notifs_q:
+        bid = n.batch_id or f"single-{n.id}"
+        g = notif_groups.get(bid)
+        if not g:
+            notif_groups[bid] = {
+                'batch_id': bid,
+                'title': n.title or '通知',
+                'created_at': n.created_at,
+                'total_count': 0,
+                'read_count': 0,
+            }
+            g = notif_groups[bid]
+        g['total_count'] += 1
+        if n.read_at is not None:
+            g['read_count'] += 1
+    trashed_notifs = sorted(list(notif_groups.values()), key=lambda r: r['created_at'], reverse=True)
     # build username mapping for adjustments
     user_ids = list({a.user_id for a in trashed_adjs})
     users_map = {u.id: u.username for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
@@ -623,6 +1005,7 @@ def admin_trash(request: Request, db = Depends(get_db), current_user = Depends(g
         trashed_users=trashed_users,
         trashed_adjs=trashed_adjs,
         users_map=users_map,
+        trashed_notifs=trashed_notifs,
     )
 
 @router.post("/admin/trash/adjustment/{adj_id}/restore")
@@ -644,6 +1027,30 @@ def trash_purge_adjustment(adj_id: int, db = Depends(get_db), current_user = Dep
     db.delete(adj)
     db.commit()
     return RedirectResponse("/admin/trash?msg=已彻底删除积分调整", status_code=302)
+
+
+@router.post("/admin/trash/notification/{batch_id}/restore")
+def trash_restore_notification(batch_id: str, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == True).all()
+    if not notifs:
+        return RedirectResponse("/admin/trash?msg=该通知组不存在或已恢复", status_code=302)
+    for n in notifs:
+        n.is_deleted = False
+    db.commit()
+    return RedirectResponse("/admin/trash?msg=已恢复通知组", status_code=302)
+
+
+@router.post("/admin/trash/notification/{batch_id}/purge")
+def trash_purge_notification(batch_id: str, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    notifs = db.query(Notification).filter(Notification.batch_id == batch_id, Notification.is_deleted == True).all()
+    if not notifs:
+        return RedirectResponse("/admin/trash?msg=该通知组不存在", status_code=302)
+    for n in notifs:
+        db.delete(n)
+    db.commit()
+    return RedirectResponse("/admin/trash?msg=已彻底删除通知组", status_code=302)
 
 
 @router.post("/admin/trash/event/{event_id}/restore")
@@ -804,12 +1211,40 @@ def admin_user_detail(uid: int, request: Request, db = Depends(get_db), current_
     u = db.get(User, uid)
     if not u or u.is_deleted:
         raise HTTPException(404, "用户不存在")
-    subs = db.query(Submission).filter(Submission.user_id == uid).all()
+    subs = db.query(Submission).filter(Submission.user_id == uid).order_by(Submission.created_at.desc()).all()
     total_items = sum(len(s.items) for s in subs)
     approved = sum(1 for s in subs for it in s.items if it.approved and not it.revoked)
     pending = sum(1 for s in subs for it in s.items if not it.approved)
     revoked = sum(1 for s in subs for it in s.items if it.revoked)
-    return render_template("admin_user_detail.html", title=f"成员详情 — {u.username}", current_user=current_user, user=u, subs=subs, total_items=total_items, approved=approved, pending=pending, revoked=revoked)
+    rows = []
+    for s in subs:
+        total_items_s = len(s.items)
+        pending_s = sum(1 for it in s.items if not it.approved)
+        ok_s = sum(1 for it in s.items if it.approved and not it.revoked)
+        rev_s = sum(1 for it in s.items if it.revoked)
+        manual_set = (getattr(s, 'manual_points', None) is not None)
+        is_reviewed = getattr(s, 'rejected', False) or (total_items_s > 0 and pending_s == 0) or (total_items_s == 0 and manual_set)
+        pts = compute_submission_points(s) if (is_reviewed and not getattr(s, 'rejected', False)) else None
+        ch_names = []
+        try:
+            for it in s.items:
+                if it.challenge and it.challenge.name:
+                    ch_names.append(it.challenge.name)
+        except Exception:
+            pass
+        rows.append({
+            "id": s.id,
+            "created_at": s.created_at,
+            "event": s.event.name if s.event else '—',
+            "rejected": getattr(s, 'rejected', False),
+            "reviewed": is_reviewed,
+            "points": pts,
+            "challenges": ch_names,
+            "pending": pending_s,
+            "ok": ok_s,
+            "rev": rev_s,
+        })
+    return render_template("admin_user_detail.html", title=f"成员详情 — {u.username}", current_user=current_user, user=u, subs=subs, total_items=total_items, approved=approved, pending=pending, revoked=revoked, rows=rows)
 
 
 @router.post("/admin/users/{uid}/password")

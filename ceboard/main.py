@@ -5,11 +5,12 @@ from fastapi.responses import RedirectResponse
 from fastapi.exception_handlers import http_exception_handler as default_http_exception_handler
 
 from .config import IMAGE_DIR, SESSION_SECRET
+from .deps import render_template
 from .database import init_db_and_migrate, SessionLocal
 from .models import User
 from passlib.hash import pbkdf2_sha256 as pwdhash
 
-from .routers import auth, profile, public, submit, admin
+from .routers import auth, profile, public, submit, admin, notifications
 from contextlib import asynccontextmanager
 
 
@@ -44,12 +45,25 @@ app.include_router(profile.router)
 app.include_router(public.router)
 app.include_router(submit.router)
 app.include_router(admin.router)
+app.include_router(notifications.router)
 
 
 @app.exception_handler(HTTPException)
 async def http_exc_redirect_login(request: Request, exc: HTTPException):
-    # 未登录/无权限统一跳转登录（不返回纯 JSON）
     if exc.status_code in (401, 403):
         next_url = request.url.path
         return RedirectResponse(url=f"/auth/login?next={next_url}", status_code=302)
     return await default_http_exception_handler(request, exc)
+
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: HTTPException):
+    # 让 404 页面也能显示已登录用户导航状态
+    try:
+        uid = request.session.get("user_id")
+        user = None
+        if uid:
+            with SessionLocal() as db:
+                user = db.get(User, uid)
+    except Exception:
+        user = None
+    return render_template("404.html", title="页面不存在", current_user=user, status_code=404)

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>确认驳回提交</h2>
+  <p class="muted">成员：{{ sub.user.username if sub.user else '—' }} ｜ 活动：{{ sub.event.name if sub.event else '—' }}</p>
+  <form class="col" method="post" action="/admin/review/{{ sub.id }}/reject_apply" onsubmit="return validateReason()">
+    <label>驳回理由</label>
+    <textarea id="reasonBox" name="reason" rows="6" placeholder="请输入驳回理由（将通知成员）" required>{{ reason or '' }}</textarea>
+    <div class="row" style="justify-content:flex-end; gap:10px">
+      <a class="btn secondary" href="/admin/review/{{ sub.id }}">返回</a>
+      <button class="btn warn" type="submit">确认驳回</button>
+    </div>
+  </form>
+</div>
+<script>
+  function validateReason(){
+    const v = document.getElementById('reasonBox').value.trim();
+    if(!v){ alert('请填写驳回理由'); return false; }
+    return confirm('确认执行驳回并发送通知？');
+  }
+</script>
+{% endblock %}

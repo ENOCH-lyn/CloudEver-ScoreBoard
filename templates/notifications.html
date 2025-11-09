@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>通知系统</h2>
+  <form class="row" method="get" action="/notifications">
+      <label class="label-inline">状态</label>
+      <div class="seg" style="max-width:100%">
+      <input type="radio" id="st_unread" name="status" value="unread" {% if status=='unread' %}checked{% endif %} onchange="this.form.submit()" />
+      <label for="st_unread">未读</label>
+      <input type="radio" id="st_read" name="status" value="read" {% if status=='read' %}checked{% endif %} onchange="this.form.submit()" />
+      <label for="st_read">已读</label>
+      <input type="radio" id="st_all" name="status" value="all" {% if status=='all' %}checked{% endif %} onchange="this.form.submit()" />
+      <label for="st_all">全部</label>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <table class="table-cards">
+    <thead><tr><th>时间</th><th>标题</th><th>状态</th><th></th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        <td>{{ it.created_at }}</td>
+        <td><a href="/notifications/{{ it.id }}" style="font-weight:700; color:#0f172a">{{ it.title }}</a></td>
+        <td>{% if it.read %}<span class="status ok">已读</span>{% else %}<span class="status pending">未读</span>{% endif %}</td>
+        <td><a class="btn secondary" href="/notifications/{{ it.id }}">查看</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">暂无通知</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="row" style="justify-content:space-between; margin-top:10px">
+    {% set per_page = 10 %}
+    {% set total_pages = ((total + per_page - 1) // per_page) if total else 1 %}
+    <div class="muted">第 {{ page }} / {{ total_pages }} 页 · 共 {{ total }} 条</div>
+    <div class="row">
+      {% set prev = page-1 %}
+      {% set next = page+1 %}
+      {% if page > 1 %}<a class="btn secondary" href="/notifications?status={{ status }}&page={{ prev }}">上一页</a>{% endif %}
+      {% if page * 10 < total %}<a class="btn" style="margin-left:8px" href="/notifications?status={{ status }}&page={{ next }}">下一页</a>{% endif %}
+    </div>
+  </div>
+  {% if status != 'read' %}
+    {% if unread_total and unread_total > 0 and status != 'read' %}
+      <form method="post" action="/notifications/read-all" style="margin-top:10px">
+        <button class="btn" type="submit">全部标记为已读 ({{ unread_total }})</button>
+      </form>
+    {% endif %}
+  {% endif %}  
+</div>
+{% endblock %}

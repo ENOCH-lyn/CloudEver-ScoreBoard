@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <h2>通知阅读明细</h2>
+      <p class="muted">标题：{{ notif_title }} ｜ 总数：{{ total }} ｜ 已读：{{ read }} ｜ 未读：{{ total - read }}</p>
+      <div class="md" style="margin-top:10px">{{ notif_content }}</div>
+    </div>
+    <div class="card">
+      <h3>已读成员 ({{ read_users|length }})</h3>
+      {% if read_users %}
+        <div class="chips">{% for u in read_users %}<span class="chip">{{ u }}</span>{% endfor %}</div>
+      {% else %}<p class="muted">暂无已读</p>{% endif %}
+    </div>
+    <div class="card">
+      <h3>未读成员 ({{ unread_users|length }})</h3>
+      {% if unread_users %}
+        <div class="chips">{% for u in unread_users %}<span class="chip" style="background:#fff1f2; border-color:#fecdd3">{{ u }}</span>{% endfor %}</div>
+      {% else %}<p class="muted">暂无未读</p>{% endif %}
+      <div class="row" style="margin-top:14px">
+        <a class="btn secondary" href="/admin/notifications">返回</a>
+        <a class="btn" href="/admin/notifications/{{ batch_id }}/edit">编辑通知</a>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

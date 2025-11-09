@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>我的提交记录</h2>
+  <table class="table-cards">
+    <thead>
+      <tr>
+        <th>ID</th><th>时间</th><th>活动</th><th>积分</th><th>状态</th><th>已通过</th><th>待审</th><th>被撤销</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>#{{ r.id }}</td>
+        <td>{{ r.created_at }}</td>
+        <td>{{ r.event_name }}</td>
+        <td>{{ '%.2f' % r.points }}</td>
+        <td>
+          {% if r.rejected %}<span class="status rev">已驳回</span>
+          {% else %}
+            {% if r.pending_items > 0 %}<span class="status pending">待审</span>
+            {% elif r.ok_items > 0 or r.reviewed %}<span class="status ok">已计分</span>
+            {% else %}<span class="muted">—</span>{% endif %}
+          {% endif %}
+        </td>
+        <td>{{ r.ok_items }}</td>
+        <td>{{ r.pending_items }}</td>
+        <td>{{ r.rev_items }}</td>
+        <td class="row">
+          <a class="btn secondary" href="/submission/{{ r.id }}">查看</a>
+          {% if r.rejected %}
+            <a class="btn" href="/submission/{{ r.id }}/edit">编辑</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="muted">暂无提交</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

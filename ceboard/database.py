@@ -57,5 +57,56 @@ def init_db_and_migrate():
             with engine.connect() as conn:
                 conn.execute(text("ALTER TABLE submissions ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
                 conn.commit()
+        # submissions.rejected related
+        sub_cols = [c.get('name') or c.get('name_') for c in inspector.get_columns('submissions')]
+        with engine.connect() as conn:
+            if 'rejected' not in sub_cols:
+                conn.execute(text("ALTER TABLE submissions ADD COLUMN rejected BOOLEAN DEFAULT 0"))
+                conn.commit()
+            if 'rejected_reason' not in sub_cols:
+                conn.execute(text("ALTER TABLE submissions ADD COLUMN rejected_reason TEXT"))
+                conn.commit()
+            if 'rejected_at' not in sub_cols:
+                conn.execute(text("ALTER TABLE submissions ADD COLUMN rejected_at TIMESTAMP"))
+                conn.commit()
+            if 'rejected_by_id' not in sub_cols:
+                conn.execute(text("ALTER TABLE submissions ADD COLUMN rejected_by_id INTEGER"))
+                conn.commit()
+
+        # notifications table (create if missing)
+        try:
+            inspector.get_columns('notifications')
+        except Exception:
+            # Fallback create when inspector fails; ensure id, user_id, type, content, related_id, created_at, read_at, is_deleted
+            with engine.connect() as conn:
+                conn.execute(text(
+                    """
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        type VARCHAR NOT NULL,
+                        title VARCHAR,
+                        content TEXT NOT NULL,
+                        related_id INTEGER,
+                        created_at TIMESTAMP,
+                        read_at TIMESTAMP,
+                        is_deleted BOOLEAN DEFAULT 0
+                    )
+                    """
+                ))
+                conn.commit()
+        # add title column if missing (upgrade path)
+        try:
+            notif_cols = [c.get('name') or c.get('name_') for c in inspector.get_columns('notifications')]
+            if 'title' not in notif_cols:
+                with engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notifications ADD COLUMN title VARCHAR"))
+                    conn.commit()
+            if 'batch_id' not in notif_cols:
+                with engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notifications ADD COLUMN batch_id VARCHAR"))
+                    conn.commit()
+        except Exception:
+            pass
     except Exception:
         pass

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>{{ n.title or '通知' }}</h2>
+  <p class="muted">时间：{{ n.created_at }} {% if n.read_at %}｜已读于：{{ n.read_at }}{% endif %}</p>
+  <a class="btn secondary" href="/notifications?status={{ status }}&page={{ page }}" style="margin-top:8px">返回</a>
+</div>
+
+<div class="card">
+  <div class="md">{{ content_html|safe }}</div>
+  {% if n.type == 'rejection' and sub %}
+    <div class="md" style="margin-top:10px">
+      <strong>关联提交：</strong>
+      <div>活动：{{ event_name or '—' }}</div>
+      {% if ch_names and ch_names|length>0 %}
+        <div>涉及题目：{{ ', '.join(ch_names) }}</div>
+      {% endif %}
+    </div>
+    <div class="row" style="margin-top:10px">
+      <a class="btn" href="/submission/{{ sub.id }}/edit">重新编辑</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

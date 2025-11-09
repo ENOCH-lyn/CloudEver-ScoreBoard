@@ -9,11 +9,20 @@
     ｜外链：<a href="{{ sub.wp_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ link_text }}</a>
   {% endif %}
   </p>
+  {% if sub.rejected %}
+    <div class="row" style="margin-top:6px">
+      <span class="status rev">已被驳回</span>
+      {% if sub.rejected_reason %}<span class="muted">理由：{{ sub.rejected_reason }}</span>{% endif %}
+      {% if current_user and current_user.id == sub.user_id %}
+        <a class="btn secondary" href="/submission/{{ sub.id }}/edit">编辑</a>
+      {% endif %}
+    </div>
+  {% endif %}
   {% if current_user and current_user.id == sub.user_id %}
     {% set any_ok = (items | selectattr('approved') | selectattr('revoked', 'equalto', False) | list | length) > 0 %}
     {% if (not any_ok) and (sub.manual_points is none) %}
     <form method="post" action="/submission/{{ sub.id }}/delete" onsubmit="return confirm('确认删除该提交？该操作会移入垃圾箱');">
-      <button class="btn warn" type="submit">删除我的提交</button>
+      <button class="btn warn" type="submit">删除提交</button>
     </form>
     {% endif %}
   {% endif %}

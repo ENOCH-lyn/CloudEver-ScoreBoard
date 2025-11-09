@@ -45,20 +45,30 @@
   {% endif %}
   <p class="muted">显示审核相关记录，可进入审核并切换审核积分。</p>
   <table class="table-cards">
-    <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>待审</th><th>已计分</th><th>被撤销</th><th>操作</th></tr></thead>
+    <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>状态</th><th>分数</th><th>待审</th><th>已计分</th><th>被撤销</th><th>操作</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
         <td>{{ r.created_at }}</td>
         <td>{{ r.username }}</td>
         <td>{{ r.event_name }}</td>
+  <td>
+    {% if r.rejected %}
+      <span class="status rev">已驳回</span>
+    {% elif r.reviewed %}
+      <span class="status ok" style="background:#ecfdf5; border-color:#bbf7d0">已审核</span>
+    {% else %}
+      <span class="status pending">未审核</span>
+    {% endif %}
+  </td>
+  <td>{{ r.points if r.points is not none else '-' }}</td>
   <td><span class="pill">{{ r.pending }}</span></td>
   <td><span class="pill">{{ r.ok }}</span></td>
   <td><span class="pill">{{ r.rev }}</span></td>
   <td><a class="btn secondary" href="/admin/review/{{ r.sub_id }}">审核</a></td>
       </tr>
     {% else %}
-      <tr><td colspan="7" class="muted">暂无提交</td></tr>
+      <tr><td colspan="9" class="muted">暂无提交</td></tr>
     {% endfor %}
     </tbody>
   </table>

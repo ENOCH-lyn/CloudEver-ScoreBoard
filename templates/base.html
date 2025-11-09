@@ -23,9 +23,11 @@
     body{
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans SC', Arial;
       margin:0; color:var(--text); background:var(--bg);
+      /* 让页脚始终贴底：页面用列布局，内容区域占满剩余空间 */
+      min-height:100vh; display:flex; flex-direction:column;
     }
     header{
-      position:sticky; top:0; z-index:10;
+      position:sticky; top:0; z-index:1000;
       display:flex; align-items:center; gap:16px; padding:12px 20px;
       background:var(--surface);
       border-bottom:1px solid var(--border);
@@ -46,7 +48,7 @@
   .hamburger span::after{top:6px}
 
   /* Full-width content container to allow cards to adapt fluidly */
-  .wrap{width:100%; max-width:none; margin:0 auto; padding:24px 22px}
+  .wrap{width:100%; max-width:none; margin:0 auto; padding:24px 22px; flex:1 0 auto}
 
     .card{
       position:relative; margin:14px 0; padding:18px 18px;
@@ -158,6 +160,26 @@
   .chips{display:flex; flex-wrap:wrap; gap:6px}
   .chip{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--border); background:#f8fafc; font-size:12px; color:#334155}
 
+  /* Footer */
+  .footer{color:var(--muted); font-size:13px; padding:18px 22px; text-align:center}
+  .footer a{color:var(--accent); text-decoration:none}
+  .footer a:hover{text-decoration:underline}
+
+  /* About / Hero */
+  .hero{position:relative; border:1px solid var(--border); border-radius:18px; padding:48px 24px; background:linear-gradient(135deg,#eef2ff 0%, #f7fee7 100%); box-shadow:var(--shadow); min-height:calc(100vh - 140px); display:flex; align-items:center; overflow:hidden}
+  .hero::after{content:""; position:absolute; right:-120px; bottom:-120px; width:360px; height:360px; background:radial-gradient(closest-side, rgba(26,115,232,.12), transparent); border-radius:999px}
+  .hero h1{font-size:clamp(28px, 4vw, 56px); margin:0 0 10px; letter-spacing:.3px}
+  .hero p{font-size:clamp(14px, 1.4vw, 18px); color:#475569; margin:6px 0 18px}
+  .badges{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px}
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:#fff; color:#334155; font-weight:700}
+  .cta{display:flex; gap:10px; flex-wrap:wrap}
+  .btn.lg{padding:12px 16px; font-size:16px}
+  .subgrid{display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px; margin-top:18px}
+  .link-card{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:16px; border:1px solid var(--border); border-radius:14px; background:#fff; box-shadow:var(--shadow); color:#334155; text-decoration:none}
+  .link-card:hover{border-color:#c7d2fe; background:#f8fbff; text-decoration:none}
+  .link-card .title{font-weight:800; color:#111827}
+  .link-card .meta{color:#475569}
+
   /* Mobile styles */
   @media (max-width: 640px){
     header{padding:10px 12px}
@@ -189,6 +211,8 @@
     .toolbar .actions .btn{width:100%}
     /* Utility: full width on small screens */
     .full-sm{width:100%}
+  .hero{padding:26px 16px; min-height:calc(100vh - 120px)}
+    .subgrid{grid-template-columns:1fr}
   }
   /* Card-style tables on mobile */
   @media (max-width: 640px){
@@ -219,16 +243,20 @@
     <div style="margin-left:auto">
       {% if current_user %}
         <div class="user-menu" id="userMenu">
-          <div class="user-trigger" id="userTrigger">
-            {% if avatar_url %}<img class="avatar" src="{{ avatar_url }}" alt="avatar" />{% endif %}
+          <div class="user-trigger" id="userTrigger" style="position:relative">
+            {% if avatar_url %}
+              <img class="avatar" src="{{ avatar_url }}" alt="avatar" />
+              {% if unread_count and unread_count > 0 %}
+                <span style="position:absolute; top:4px; right:4px; width:10px; height:10px; background:#e11d48; border:2px solid #fff; border-radius:999px"></span>
+              {% endif %}
+            {% endif %}
             <span class="muted" style="font-weight:600">{{ current_user.username }}</span>
           </div>
-          <div class="menu" id="userDropdown">
-            <div style="padding:8px 12px; color:#6b7280; font-size:12px;">{{ '主队' if current_user.team_type=='main' else '子队' }}</div>
-            {% if current_user.role == 'admin' %}
-              <a href="/admin/advanced">管理员面板</a>
-            {% endif %}
-            <a href="/profile">个人设置</a>
+          <div class="menu" id="userDropdown" style="min-width:220px">
+            {% if current_user.role == 'admin' %}<a href="/admin/advanced">管理面板</a>{% endif %}
+            <a href="/notifications">通知系统{% if unread_count and unread_count > 0 %}<span style="float:right; background:#e11d48; color:#fff; font-size:11px; padding:2px 6px; border-radius:999px">{{ unread_count }}</span>{% endif %}</a>
+            <a href="/my/submissions">我的提交</a>
+            <a href="/profile">个人信息</a>
             <form action="/auth/logout" method="post"><button type="submit">退出登录</button></form>
           </div>
         </div>
@@ -242,6 +270,7 @@
     {% if msg %}<div class="card">{{ msg }}</div>{% endif %}
     {% block content %}{% endblock %}
   </div>
+  <footer class="footer">© 2025 CloudEver. All rights reserved.</footer>
   <script>
     // 高亮当前所在页面的导航项（而不是按使用次数加深颜色）
     const navLinks = document.querySelectorAll('header .nav a');
@@ -287,6 +316,7 @@
       });
     };
     enhanceCardTables();
+    // Notifications merged in user dropdown (already handled by trigger logic)
   </script>
 </body>
 </html>

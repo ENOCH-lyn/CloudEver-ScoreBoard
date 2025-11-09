@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <h2>编辑通知</h2>
+      <form class="col" method="post" action="/admin/notifications/{{ batch_id }}/edit">
+        <div class="row" style="align-items:flex-start; gap:20px; position:relative">
+          <div class="col" style="flex:1; min-width:260px">
+            <label>发送目标（只读）</label>
+            <div class="target-bar" style="display:flex; flex-wrap:wrap; gap:6px; min-height:42px; padding:8px; border:1px solid var(--border); border-radius:10px; background:#f8fafc">
+              {% if usernames and usernames|length>0 %}
+                {% for name in usernames %}<span class="chip">{{ name }}</span>{% endfor %}
+              {% else %}<span class="muted">全部成员</span>{% endif %}
+            </div>
+            <label style="margin-top:16px">标题</label>
+            <input name="title" placeholder="通知标题" value="{{ title_value }}" />
+          </div>
+          <div class="col" style="flex:2; min-width:320px">
+            <label>内容（Markdown 支持）</label>
+            <div class="content-wrapper" style="border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:0; display:flex; flex-direction:column; height:400px">
+              <textarea name="content" style="flex:1; resize:none; border:0; padding:12px; background:transparent; font-family:inherit" required>{{ content_value }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px; gap:10px">
+          <button class="btn" type="submit">保存</button>
+          <a class="btn secondary" href="/admin/notifications">返回</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+{% endblock %}

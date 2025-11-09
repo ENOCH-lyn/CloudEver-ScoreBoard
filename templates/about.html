@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.dino-wrapper{position:relative; background:#fff; border:1px solid var(--border); border-radius:18px; padding:18px 12px 32px; min-height:calc(100vh - 160px); display:flex; flex-direction:column}
+.dino-header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px}
+.dino-header h1{margin:0; font-size:36px; letter-spacing:.5px}
+.dino-header .desc{color:#64748b; font-size:14px; margin:4px 0 0}
+.dino-game-area{flex:1 1 auto; position:relative}
+.dino-actions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap}
+@media (max-width:640px){
+	.dino-wrapper{min-height:calc(100vh - 140px); padding:14px 10px 28px}
+	.dino-header h1{font-size:30px}
+}
+.dino-wrapper body{background:transparent;}
+</style>
+<div class="dino-wrapper">
+	<div class="dino-header">
+		<div>
+			<h1>About CloudEver</h1>
+			<p class="desc">版本 {{ version }} · 作者 {{ author }}</p>
+			<p>页面未完工。。。</p>
+		</div>>
+	</div>
+	<div class="dino-game-area">
+		<div class="dino-include">
+			{% include 'dinosaur.html' %}
+		</div>
+	</div>
+</div>
+<script>
+(() => {
+	const b = document.body;
+	if (getComputedStyle(b).display !== 'flex') {
+		b.style.display = 'flex';
+		b.style.flexDirection = 'column';
+		b.style.minHeight = '100vh';
+	}
+})();
+</script>
+{% endblock %}

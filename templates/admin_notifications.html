@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <h2 style="margin:0">通知管理</h2>
+        <a class="btn" href="/admin/notifications/create">发布新通知</a>
+      </div>
+      <p class="muted">支持筛选/分页，避免一次性加载过多数据。</p>
+      <form class="row" method="get" action="/admin/notifications" style="margin-top:6px">
+        <input name="q" placeholder="内容包含..." value="{{ q or '' }}" style="max-width:240px" />
+        <select name="user_id" style="max-width:200px">
+          <option value="">全部用户</option>
+          {% for u in users %}
+            <option value="{{ u.id }}" {% if user_id == u.id %}selected{% endif %}>{{ u.username }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">筛选</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>通知列表</h3>
+      <table class="table-cards">
+  <thead><tr><th>时间</th><th>标题</th><th>已读成员</th><th>未读成员</th><th style="width:180px">操作</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.created_at }}</td>
+            <td style="min-width:220px">{{ r.title }}</td>
+            <td class="notif-users" style="min-width:240px">
+              {% if r.read_users and r.read_users|length>0 %}
+                <div class="chips" style="gap:4px">{% for name in r.read_users %}<span class="chip usr-chip green">{{ name }}</span>{% endfor %}</div>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="notif-users" style="min-width:240px">
+              {% if r.unread_users and r.unread_users|length>0 %}
+                <div class="chips" style="gap:4px">{% for name in r.unread_users %}<span class="chip usr-chip red">{{ name }}</span>{% endfor %}</div>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="ops">
+              <form method="post" action="/admin/notifications/{{ r.batch_id }}/delete" onsubmit="return confirm('确认删除该通知组？删除后仅在垃圾箱显示');" style="display:inline">
+                <button class="btn warn" type="submit">删除</button>
+              </form>
+              <a class="btn secondary" href="/admin/notifications/{{ r.batch_id }}/edit" style="margin-left:8px">编辑</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="muted">暂无通知</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="row" style="justify-content:space-between; margin-top:10px">
+        {% set per_page = 10 %}
+        {% set total_pages = ((total + per_page - 1) // per_page) if total else 1 %}
+        <div class="muted">第 {{ page }} / {{ total_pages }} 页 · 共 {{ total }} 条</div>
+        <div class="row">
+          {% set prev = page-1 %}
+          {% set next = page+1 %}
+          {% if page > 1 %}<a class="btn secondary" href="/admin/notifications?page={{ prev }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if q %}&q={{ q }}{% endif %}">上一页</a>{% endif %}
+          {% if page * per_page < total %}<a class="btn" style="margin-left:8px" href="/admin/notifications?page={{ next }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if q %}&q={{ q }}{% endif %}">下一页</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<style>
+.table-cards td .chips{max-height:none}
+.table-cards tr{height:auto}
+/* 操作列固定宽度且不换行，按钮横向排列 */
+td.ops{width:180px; white-space:nowrap;}
+td.ops .btn{display:inline-block;}
+.usr-chip{display:inline-block; padding:2px 6px; border:1px solid; border-radius:14px; font-size:12px; line-height:1.4;}
+.usr-chip.green{background:#ecfdf5; border-color:#d1fae5;}
+.usr-chip.red{background:#fef2f2; border-color:#fee2e2;}
+/* 防止用户名过多让操作列被压缩 */
+table.table-cards{table-layout:fixed;}
+table.table-cards th:nth-child(3), table.table-cards th:nth-child(4),
+table.table-cards td.notif-users{overflow:hidden;}
+/* 可选：限制最大高度并提供展开收起（JS 控制） */
+.notif-users .chips{max-height:120px; overflow:hidden; position:relative;}
+.notif-users.expanded .chips{max-height:none;}
+.expand-toggle{cursor:pointer; color:#2563eb; font-size:12px; display:inline-block; margin-top:4px;}
+@media (max-width:900px){td.ops{width:160px}}
+</style>
+<script>
+document.querySelectorAll('.notif-users').forEach(function(cell){
+  const chips = cell.querySelector('.chips');
+  if(chips && chips.scrollHeight > 130){
+    const toggle = document.createElement('span');
+    toggle.className='expand-toggle';
+    toggle.textContent='展开';
+    toggle.addEventListener('click', ()=>{
+      if(cell.classList.contains('expanded')){cell.classList.remove('expanded'); toggle.textContent='展开';}
+      else {cell.classList.add('expanded'); toggle.textContent='收起';}
+    });
+    cell.appendChild(toggle);
+  }
+});
+</script>
+{% endblock %}

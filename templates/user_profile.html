@@ -22,7 +22,7 @@
   <table class="table-cards">
     <thead>
       <tr>
-        <th>时间</th><th>活动</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>题目</th>
+  <th>时间</th><th>活动</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>状态</th><th>题目</th>
         {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
           <th>操作</th>
         {% endif %}
@@ -37,6 +37,14 @@
         <td>{{ row.count_ok }}</td>
         <td>{{ row.count_pending }}</td>
         <td>{{ row.count_revoked }}</td>
+        <td>
+          {% if row.rejected %}<span class="status rev" title="{{ row.rejected_reason or '' }}">已驳回</span>
+          {% else %}
+            {% if row.count_pending > 0 %}<span class="status pending">待审</span>
+            {% elif row.count_ok > 0 %}<span class="status ok">已计分</span>
+            {% else %}<span class="muted">—</span>{% endif %}
+          {% endif %}
+        </td>
         <td>
           {% if row.challenges and row.challenges|length > 0 %}
             <div class="chips">
@@ -54,7 +62,7 @@
       </tr>
     {% else %}
       <tr>
-        <td colspan="{% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}8{% else %}7{% endif %}" class="muted">本月暂无提交</td>
+        <td colspan="{% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}9{% else %}8{% endif %}" class="muted">本月暂无提交</td>
       </tr>
     {% endfor %}
     </tbody>

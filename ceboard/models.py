@@ -21,8 +21,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_deleted = Column(Boolean, default=False)
     avatar_filename = Column(String, nullable=True)
-
-    submissions = relationship("Submission", back_populates="user")
+    # disambiguate: Submission has two FKs to users (user_id, rejected_by_id)
+    submissions = relationship("Submission", back_populates="user", foreign_keys="Submission.user_id")
 
 
 class Event(Base):
@@ -66,8 +66,16 @@ class Submission(Base):
     wp_md = Column(Text, nullable=True)
     manual_points = Column(Float, nullable=True)  # 管理员在审核时手动设定的总分（优先级高于题目累计）
     is_deleted = Column(Boolean, default=False)
+    # 驳回（打回）相关字段：被管理员或审核员整条退回，需成员重新编辑提交
+    rejected = Column(Boolean, default=False)
+    rejected_reason = Column(Text, nullable=True)
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    user = relationship("User", back_populates="submissions")
+    #明确关联到提交者
+    user = relationship("User", back_populates="submissions", foreign_keys=[user_id])
+    #关联到驳回操作者（只读）
+    rejected_by = relationship("User", foreign_keys=[rejected_by_id])
     event = relationship("Event", back_populates="submissions")
     items = relationship("SubmissionItem", back_populates="submission", cascade="all,delete-orphan")
 
@@ -119,3 +127,18 @@ class EventType(Base):
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ))
+
+
+class Notification(Base):
+    """针对用户的站内通知，例如提交被驳回等。"""
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    type = Column(String, nullable=False)  # 'rejection' | 其他预留
+    title = Column(String, nullable=True)
+    content = Column(Text, nullable=False)
+    related_id = Column(Integer, nullable=True)  # 关联的实体，如 submission.id
+    batch_id = Column(String, nullable=True)  # 同一次发布的分组ID，支持聚合显示与批量操作
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ))
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    is_deleted = Column(Boolean, default=False)

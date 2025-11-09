@@ -28,6 +28,9 @@ def compute_submission_points(sub: Submission) -> float:
     If manual_points is set, use it directly (already considered by reviewer);
     otherwise sum approved, not-revoked items' base_score and multiply by event weight.
     """
+    # 被驳回的提交不计分
+    if getattr(sub, 'rejected', False):
+        return 0.0
     if not sub.event:
         return 0.0
     # manual override takes precedence
