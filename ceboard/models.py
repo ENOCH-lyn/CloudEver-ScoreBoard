@@ -21,6 +21,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_deleted = Column(Boolean, default=False)
     avatar_filename = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    show_on_leaderboard = Column(Boolean, default=True)
     # disambiguate: Submission has two FKs to users (user_id, rejected_by_id)
     submissions = relationship("Submission", back_populates="user", foreign_keys="Submission.user_id")
 
@@ -37,6 +39,7 @@ class Event(Base):
     allow_wp_only = Column(Boolean, default=False)  # 允许仅提交WP，由管理员在审核时手动给分
     is_deleted = Column(Boolean, default=False)
     event_type_id = Column(Integer, ForeignKey("event_types.id"), nullable=True)
+    remark = Column(Text, nullable=True)
 
     challenges = relationship("Challenge", back_populates="event", cascade="all,delete")
     submissions = relationship("Submission", back_populates="event")
@@ -49,6 +52,7 @@ class Challenge(Base):
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
     name = Column(String, nullable=False)
     category = Column(String, default="misc")
+    direction = Column(String, nullable=True)
     base_score = Column(Integer, default=100)
     is_deleted = Column(Boolean, default=False)
 

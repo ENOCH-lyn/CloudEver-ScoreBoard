@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+  <h2>题目方向</h2>
+  <p class="muted">一行一个方向（或用逗号分隔）。保存后用于题目新增下拉列表。</p>
+      <form method="post" action="/admin/categories">
+  <textarea name="content" rows="10" style="width:100%; resize:vertical" placeholder="例如：\nweb\npwn\ncrypto\nrev\nmisc\nothers">{{ raw_categories }}</textarea>
+  <div style="margin-top:12px"><button class="btn" type="submit">保存方向</button></div>
+      </form>
+  <p class="muted" style="margin-top:10px">留空则回退到默认内置方向列表。</p>
+    </div>
+  </main>
+</div>
+{% endblock %}

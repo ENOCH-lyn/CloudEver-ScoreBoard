@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2>编辑活动</h2>
+  <h2>编辑比赛</h2>
   <form method="post" action="/admin/events/{{ event.id }}/edit">
     <label>名称</label>
     <input name="name" value="{{ event.name }}" required />
@@ -18,7 +18,7 @@
       <button class="btn secondary" type="button" onclick="document.getElementById('end').showPicker && document.getElementById('end').showPicker()">选择结束时间</button>
     </div>
 
-    <label>活动权重</label>
+  <label>比赛权重</label>
     <input name="weight" value="{{ '%.2f'|format(event.weight or 1.0) }}" />
 
     <label>类型</label>
@@ -27,6 +27,8 @@
         <option value="{{ t.id }}" {% if event.event_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
       {% endfor %}
     </select>
+    <label>备注（可选）</label>
+    <textarea name="remark" rows="3" placeholder="比赛说明或备注">{{ event.remark or '' }}</textarea>
 
 
     <div style="margin-top:12px" class="row">

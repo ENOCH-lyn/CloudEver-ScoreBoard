@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2>活动管理</h2>
+  <h2>比赛管理</h2>
   <div class="list-scroll list-scroll-lg">
   <table class="table-cards">
     <thead><tr><th>名称</th><th>权重</th><th>类型</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
@@ -24,7 +24,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="muted">暂无活动</td></tr>
+      <tr><td colspan="6" class="muted">暂无比赛</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -32,7 +32,7 @@
 </div>
 
 <div class="card">
-  <h3>新建活动</h3>
+  <h3>新建比赛</h3>
   <form method="post" action="/admin/events/create">
     <label>名称</label>
     <input name="name" required />
@@ -40,7 +40,9 @@
     <input id="start" name="start" type="datetime-local" style="max-width:260px" />
     <label>结束时间</label>
     <input id="end" name="end" type="datetime-local" style="max-width:260px" />
-    <label>活动权重</label>
+  <label>备注（可选）</label>
+  <textarea name="remark" rows="3" placeholder="比赛说明或备注"></textarea>
+  <label>比赛权重</label>
     <input name="weight" value="1.0" />
     <label>类型</label>
     <select name="event_type_id">

@@ -81,3 +81,18 @@ def clear_avatar(request: Request, db = Depends(get_db), current_user = Depends(
     current_user.avatar_filename = None
     db.add(current_user); db.commit()
     return RedirectResponse("/profile?msg=头像已清除", status_code=302)
+
+
+@router.post("/profile/email")
+def update_email(request: Request, email: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    """更新用户的邮箱地址，用于接收系统通知邮件。"""
+    require_login(current_user)
+    e = (email or '').strip()
+    # 简单校验：允许为空（清除邮箱）；否则必须看起来像邮箱
+    if e:
+        import re
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e):
+            return RedirectResponse("/profile?msg=邮箱格式不正确", status_code=302)
+    current_user.email = e or None
+    db.add(current_user); db.commit()
+    return RedirectResponse("/profile?msg=邮箱已更新", status_code=302)

@@ -24,6 +24,14 @@ def init_db_and_migrate():
             with engine.connect() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
                 conn.commit()
+        if 'email' not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR"))
+                conn.commit()
+        if 'show_on_leaderboard' not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN show_on_leaderboard BOOLEAN DEFAULT 1"))
+                conn.commit()
 
         # events.allow_wp_only, events.is_deleted
         evt_cols = [c.get('name') or c.get('name_') for c in inspector.get_columns('events')]
@@ -37,12 +45,19 @@ def init_db_and_migrate():
             if 'event_type_id' not in evt_cols:
                 conn.execute(text("ALTER TABLE events ADD COLUMN event_type_id INTEGER"))
                 conn.commit()
+            if 'remark' not in evt_cols:
+                conn.execute(text("ALTER TABLE events ADD COLUMN remark TEXT"))
+                conn.commit()
 
         # challenges.is_deleted
         ch_cols = [c.get('name') or c.get('name_') for c in inspector.get_columns('challenges')]
         if 'is_deleted' not in ch_cols:
             with engine.connect() as conn:
                 conn.execute(text("ALTER TABLE challenges ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
+                conn.commit()
+        if 'direction' not in ch_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE challenges ADD COLUMN direction VARCHAR"))
                 conn.commit()
 
         # submissions.manual_points

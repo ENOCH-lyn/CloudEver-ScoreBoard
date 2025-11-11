@@ -4,6 +4,11 @@
   <div class="card side-panel">
     <h2>成员详情 — {{ user.username }}</h2>
     <p class="muted">总条目：{{ total_items }} · 已计分：{{ approved }} · 待审：{{ pending }} · 被撤销：{{ revoked }}</p>
+    {% if user.show_on_leaderboard %}
+      <p class="muted" style="margin-top:4px">排行榜：<span class="pill" style="background:#4caf50; color:#fff">计入</span></p>
+    {% else %}
+      <p class="muted" style="margin-top:4px">排行榜：<span class="pill" style="background:#999; color:#fff">不计入</span></p>
+    {% endif %}
     <div class="row">
       <span class="pill">{{ '主队' if user.team_type=='main' else '子队' }}</span>
       <span class="pill">{{ '管理员' if user.role=='admin' else '成员' }}</span>
@@ -14,10 +19,18 @@
       <input name="new_password" type="password" placeholder="新密码(≥6位)" style="max-width:260px" />
       <button class="btn" type="submit">更新密码</button>
     </form>
+    <form method="post" action="/admin/users/{{ user.id }}/email" class="row" style="margin-top:8px; gap:8px; align-items:flex-end">
+      <div>
+        <label class="label-inline" for="adminEmail">邮箱</label>
+        <input id="adminEmail" name="email" type="email" value="{{ user.email or '' }}" placeholder="user@example.com" style="max-width:260px" />
+      </div>
+      <button class="btn secondary" type="submit">保存邮箱</button>
+    </form>
     <h3>设置头像</h3>
     {% if user.avatar_filename %}
       <img class="avatar" style="width:80px;height:80px;margin-bottom:12px" src="/images/{{ user.avatar_filename }}" alt="avatar" />
     {% endif %}
+
     <form method="post" action="/admin/users/{{ user.id }}/avatar" enctype="multipart/form-data">
       <input id="adminAvatarInput" style="display:none" type="file" name="file" accept="image/png,image/jpeg,image/webp" required />
       <div class="row">
@@ -36,12 +49,12 @@
   <div class="card main-panel" style="flex:1; min-width:0">
     <h3>提交记录</h3>
     <table class="table-cards">
-      <thead><tr><th>时间</th><th>活动</th><th>状态</th><th>分数</th><th>题目</th><th>待审</th><th>已计分</th><th>撤销</th><th>操作</th></tr></thead>
+  <thead><tr><th>时间</th><th>比赛</th><th>状态</th><th>分数</th><th>题目</th><th>待审</th><th>已计分</th><th>撤销</th><th>操作</th></tr></thead>
       <tbody>
       {% for r in rows %}
         <tr>
           <td data-label="时间">{{ r.created_at }}</td>
-          <td data-label="活动">{{ r.event }}</td>
+          <td data-label="比赛">{{ r.event }}</td>
           <td data-label="状态">
             {% if r.rejected %}<span class="status rev">已驳回</span>
             {% elif r.reviewed %}<span class="status ok" style="background:#ecfdf5; border-color:#bbf7d0">已审核</span>
@@ -63,6 +76,8 @@
       {% endfor %}
       </tbody>
     </table>
+    {% from 'partials/pagination.html' import pager %}
+    {{ pager('/admin/users/' ~ user.id, page, total_pages) }}
   </div>
 </div>
 <style>

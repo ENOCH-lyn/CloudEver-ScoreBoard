@@ -2,6 +2,7 @@
 {% block content %}
 <div class="card">
   <h2>提交成绩 — {{ event.name }}</h2>
+  {% if event.remark %}<p class="muted">备注：{{ event.remark }}</p>{% endif %}
   <form method="post">
     <div class="row" style="justify-content:space-between; align-items:center">
       <label>已解题目</label>
@@ -29,7 +30,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="muted">该活动尚未配置题目</p>
+      <p class="muted">该比赛尚未配置题目</p>
     {% endif %}
 
     <label style="margin-top:12px">WP 链接（可选）</label>

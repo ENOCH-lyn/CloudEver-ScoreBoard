@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2>活动详情 — {{ event.name }}</h2>
+  <h2>比赛详情 — {{ event.name }}</h2>
+  {% if event.remark %}<p class="muted">备注：{{ event.remark }}</p>{% endif %}
   <p class="muted">按“每次提交”列出。可直接进入审核，或查看该提交涉及的题目与积分。</p>
   <table class="table-cards">
     <thead><tr><th>时间</th><th>成员</th><th>积分</th><th>已通过</th><th>待审</th><th>被撤销</th><th>状态</th><th>题目</th><th>操作</th></tr></thead>

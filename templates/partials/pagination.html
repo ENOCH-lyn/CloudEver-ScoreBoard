@@ -1,0 +1,62 @@
+{% macro pager(baseUrl, page, total_pages, extra_query='') %}
+  {% if total_pages and total_pages > 1 %}
+    <style>
+      .pager-desktop, .pager-mobile{display:flex; align-items:center; gap:8px}
+      @media (max-width:640px){ .pager-desktop{display:none} }
+      @media (min-width:641px){ .pager-mobile{display:none} }
+      .pager a, .pager span{padding:4px 8px; border-radius:6px}
+      .pager a{color:var(--accent); text-decoration:none}
+      .pager .current{background:#eef2ff; color:#3730a3}
+      .pager .ellipsis{color:var(--muted)}
+    </style>
+    <nav class="pager" style="display:flex; justify-content:center; gap:10px; align-items:center; margin:10px 0; flex-wrap:wrap">
+      {% set prev = 1 if page <= 1 else page - 1 %}
+      {% set next = total_pages if page >= total_pages else page + 1 %}
+      <!-- 桌面端：数字页码 -->
+  <div class="pager-desktop">
+        {% if page > 1 %}
+          <a href="{{ baseUrl }}?page={{ prev }}{{ '&' ~ extra_query if extra_query }}" aria-label="上一页">‹</a>
+        {% else %}
+          <span class="ellipsis">‹</span>
+        {% endif %}
+        {# 计算页码范围：始终显示 1、最后页、当前页附近 ±2 #}
+        {% set start = 1 if page - 2 < 1 else page - 2 %}
+        {% set end = total_pages if page + 2 > total_pages else page + 2 %}
+        {% if start > 1 %}
+          <a href="{{ baseUrl }}?page=1{{ '&' ~ extra_query if extra_query }}">1</a>
+          {% if start > 2 %}<span class="ellipsis">…</span>{% endif %}
+        {% endif %}
+        {% for p in range(start, end + 1) %}
+          {% if p == page %}
+            <span class="current">{{ p }}</span>
+          {% else %}
+            <a href="{{ baseUrl }}?page={{ p }}{{ '&' ~ extra_query if extra_query }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+        {% if end < total_pages %}
+          {% if end < total_pages - 1 %}<span class="ellipsis">…</span>{% endif %}
+          <a href="{{ baseUrl }}?page={{ total_pages }}{{ '&' ~ extra_query if extra_query }}">{{ total_pages }}</a>
+        {% endif %}
+        {% if page < total_pages %}
+          <a href="{{ baseUrl }}?page={{ next }}{{ '&' ~ extra_query if extra_query }}" aria-label="下一页">›</a>
+        {% else %}
+          <span class="ellipsis">›</span>
+        {% endif %}
+      </div>
+      <!-- 移动端：< 1/2 > -->
+  <div class="pager-mobile">
+        {% if page > 1 %}
+          <a href="{{ baseUrl }}?page={{ prev }}{{ '&' ~ extra_query if extra_query }}" aria-label="上一页">‹</a>
+        {% else %}
+          <span class="ellipsis">‹</span>
+        {% endif %}
+        <span class="muted">{{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+          <a href="{{ baseUrl }}?page={{ next }}{{ '&' ~ extra_query if extra_query }}" aria-label="下一页">›</a>
+        {% else %}
+          <span class="ellipsis">›</span>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+{% endmacro %}

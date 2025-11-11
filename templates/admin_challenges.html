@@ -3,7 +3,7 @@
 <div class="card">
   <h2>题目管理 — {{ event.name }}</h2>
   <form class="row" method="get" action="/admin/events/{{ event.id }}/challenges">
-    <label>类别</label>
+    <label>方向</label>
     <select name="cat" style="max-width:180px">
       <option value="">全部</option>
       {% for c in categories %}<option value="{{ c }}" {% if cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
@@ -13,14 +13,18 @@
     <button class="btn" type="submit">筛选</button>
   </form>
   <table class="table-cards">
-  <thead><tr><th>题目名</th><th>类别</th><th>基础分</th><th>操作</th></tr></thead>
+  <thead><tr><th>题目名</th><th>方向</th><th>信息</th><th>操作</th></tr></thead>
     <tbody>
     {% for ch in challenges %}
       <tr>
         <td>{{ ch.name }}</td>
         <td>{{ ch.category }}</td>
         <td>
-          <form class="row" method="post" action="/admin/events/{{ event.id }}/challenges/{{ ch.id }}/update" style="gap:6px">
+          <form class="row" method="post" action="/admin/events/{{ event.id }}/challenges/{{ ch.id }}/update" style="gap:6px; flex-wrap:wrap">
+            <input name="name" value="{{ ch.name }}" placeholder="题目名" style="max-width:200px" />
+            <select name="category" style="max-width:160px">
+              {% for c in categories %}<option value="{{ c }}" {% if ch.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+            </select>
             <input name="base_score" value="{{ ch.base_score }}" style="max-width:100px" />
             <button class="btn secondary" type="submit">保存</button>
           </form>
@@ -32,7 +36,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="4" class="muted">暂无题目</td></tr>
+  <tr><td colspan="4" class="muted">暂无题目</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -43,12 +47,12 @@
   <form method="post" action="/admin/events/{{ event.id }}/challenges/add">
     <label>题目名</label>
     <input name="name" required />
-    <label>类别</label>
+    <label>方向</label>
     <select name="category">
       {% for c in categories %}<option>{{ c }}</option>{% endfor %}
     </select>
-    <label>基础分</label>
-    <input name="base_score" value="100" />
+  <label>基础分</label>
+  <input name="base_score" value="100" />
     <div style="margin-top:12px"><button class="btn" type="submit">添加</button></div>
   </form>
 </div>

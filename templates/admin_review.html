@@ -5,7 +5,7 @@
   <div class="row">
     <form class="toolbar" method="get" action="/admin/review" style="flex:1">
       <div class="field" style="flex:1 1 260px; max-width:420px">
-        <div class="caption">活动</div>
+  <div class="caption">比赛</div>
         <select name="event_id" onchange="this.form.submit()">
           <option value="">全部</option>
           {% for e in events %}
@@ -38,14 +38,14 @@
   </div>
   {% if event_id %}
     <div class="row" style="margin-top:8px">
-      <form class="full-sm" method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该活动下所有尚未审核的条目，确认？');">
-        <button class="btn secondary full-sm" type="submit">通过该活动全部待审</button>
+      <form class="full-sm" method="post" action="/admin/review/event/{{ event_id }}/approve_all" onsubmit="return confirm('将通过该比赛下所有尚未审核的条目，确认？');">
+        <button class="btn secondary full-sm" type="submit">通过该比赛全部待审</button>
       </form>
     </div>
   {% endif %}
   <p class="muted">显示审核相关记录，可进入审核并切换审核积分。</p>
   <table class="table-cards">
-    <thead><tr><th>时间</th><th>成员</th><th>活动</th><th>状态</th><th>分数</th><th>待审</th><th>已计分</th><th>被撤销</th><th>操作</th></tr></thead>
+  <thead><tr><th>时间</th><th>成员</th><th>比赛</th><th>状态</th><th>分数</th><th>待审</th><th>已计分</th><th>被撤销</th><th>操作</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
@@ -72,5 +72,12 @@
     {% endfor %}
     </tbody>
   </table>
+  {% from 'partials/pagination.html' import pager %}
+  {# 构造额外查询串，保持 event_id/status/q 在翻页中不丢失 #}
+  {% set eq = '' %}
+  {% if event_id %}{% set eq = 'event_id=' ~ event_id %}{% endif %}
+  {% if status %}{% set eq = eq ~ (eq and '&' or '') ~ 'status=' ~ status %}{% endif %}
+  {% if q %}{% set eq = eq ~ (eq and '&' or '') ~ 'q=' ~ q %}{% endif %}
+  {{ pager('/admin/review', page, total_pages, eq) }}
 </div>
 {% endblock %}

@@ -3,7 +3,7 @@
 <div class="card">
   <h2>成员管理</h2>
   <table class="table-cards">
-  <thead><tr><th>用户名</th><th>角色</th><th>队伍</th><th>操作</th></tr></thead>
+  <thead><tr><th>用户名</th><th>角色</th><th>队伍</th><th>排行</th><th>操作</th></tr></thead>
     <tbody>
     {% for u in users %}
       <tr>
@@ -31,6 +31,17 @@
         </td>
         <td>
           {% if current_user.role == 'admin' %}
+            <label style="display:flex; align-items:center; gap:4px;">
+              <input type="hidden" name="show_on_leaderboard" form="uform-{{ u.id }}" value="0">
+              <input type="checkbox" name="show_on_leaderboard" form="uform-{{ u.id }}" value="1" {% if u.show_on_leaderboard %}checked{% endif %}>
+              <span class="muted" style="font-size:12px">计入</span>
+            </label>
+          {% else %}
+            {% if u.show_on_leaderboard %}<span class="tag" style="background:#4caf50">是</span>{% else %}<span class="tag" style="background:#888">否</span>{% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if current_user.role == 'admin' %}
           <div class="row" style="align-items:center; gap:10px; flex-wrap:nowrap; white-space:nowrap">
             <form id="uform-{{ u.id }}" method="post" action="/admin/users/{{ u.id }}/update" class="row" style="align-items:center; gap:8px">
               <button class="btn secondary" type="submit">保存</button>
@@ -45,9 +56,11 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="4" class="muted">暂无成员</td></tr>
+  <tr><td colspan="5" class="muted">暂无成员</td></tr>
     {% endfor %}
     </tbody>
   </table>
+  {% from 'partials/pagination.html' import pager %}
+  {{ pager('/admin/users', page, total_pages) }}
 </div>
 {% endblock %}

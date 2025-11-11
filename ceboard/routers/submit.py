@@ -118,9 +118,13 @@ async def edit_rejected_submission_action(sub_id: int, request: Request, db = De
 
 
 @router.get("/my/submissions", response_class=HTMLResponse)
-def my_submissions_page(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+def my_submissions_page(request: Request, page: int = 1, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_login(current_user)
-    subs = db.query(Submission).filter(Submission.user_id == current_user.id, Submission.is_deleted == False).order_by(Submission.created_at.desc()).all()
+    page_size = 10
+    page = max(1, int(page or 1))
+    base_q = db.query(Submission).filter(Submission.user_id == current_user.id, Submission.is_deleted == False).order_by(Submission.created_at.desc())
+    total = base_q.count()
+    subs = base_q.offset((page-1)*page_size).limit(page_size).all()
     rows = []
     for s in subs:
         total_items = len(s.items)
@@ -128,19 +132,24 @@ def my_submissions_page(request: Request, db = Depends(get_db), current_user = D
         ok_items = sum(1 for it in s.items if it.approved and not it.revoked)
         rev_items = sum(1 for it in s.items if it.revoked)
         manual_set = (getattr(s, 'manual_points', None) is not None)
-        reviewed = manual_set or (total_items > 0 and pending_items == 0)
+        # 状态与后台审核页保持一致：
+        # 已审核 = 被驳回 或 (有条目且全部处理完) 或 (无条目但人工分已设置)
+        reviewed = getattr(s, 'rejected', False) or (total_items > 0 and pending_items == 0) or (total_items == 0 and manual_set)
+        # 若被驳回则分数不显示（前端也可判断，这里预先处理方便模板显示）
+        points_val = compute_submission_points(s) if (reviewed and not getattr(s, 'rejected', False)) else None
         rows.append({
             'id': s.id,
             'created_at': s.created_at,
             'event_name': s.event.name if s.event else '—',
-            'points': compute_submission_points(s),
+            'points': points_val,
             'rejected': getattr(s, 'rejected', False),
             'pending_items': pending_items,
             'ok_items': ok_items,
             'rev_items': rev_items,
             'reviewed': reviewed,
         })
-    return render_template("my_submissions.html", title="我的提交记录", current_user=current_user, rows=rows)
+    total_pages = (total + page_size - 1) // page_size
+    return render_template("my_submissions.html", title="我的提交记录", current_user=current_user, rows=rows, page=page, total_pages=total_pages, total=total)
 
 
 @router.post("/notifications/{notif_id}/read")

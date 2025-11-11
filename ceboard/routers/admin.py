@@ -1,18 +1,30 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import RedirectResponse, HTMLResponse
 
 from ..deps import get_db, get_current_user, require_admin, render_template, require_admin_or_reviewer
-from ..models import Event, Challenge, Submission, SubmissionItem, User, Announcement, PointAdjustment, EventType
+from ..models import Event, Challenge, Submission, SubmissionItem, User, Announcement, PointAdjustment, EventType, Setting
 from ..models import Setting
 from ..models import Notification
 import uuid
 from ..config import TZ, CATEGORIES
-from ..utils import compute_submission_points, now_tokyo
+from ..utils import compute_submission_points, now_tokyo, send_email_sync
 
 
 router = APIRouter()
+
+# 后台发送邮件（避免阻塞请求）
+def _bg_send_email(to_addr: str, subject: str, content: str):
+    try:
+        from ..database import SessionLocal
+        with SessionLocal() as s:
+            try:
+                send_email_sync(s, to_addr, subject, content)
+            except Exception:
+                pass
+    except Exception:
+        pass
 @router.get("/admin/advanced", response_class=HTMLResponse)
 def admin_advanced_dashboard(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin(current_user)
@@ -109,6 +121,7 @@ def admin_notifications_page(request: Request, page: int = 1, db = Depends(get_d
     total = len(rows)
     paged = rows[(page-1)*page_size: page*page_size]
     users = db.query(User).filter(User.is_deleted == False).all()
+    total_pages = (total + 10 - 1) // 10
     return render_template(
         "admin_notifications.html",
         title="通知管理",
@@ -119,6 +132,7 @@ def admin_notifications_page(request: Request, page: int = 1, db = Depends(get_d
         user_id=int(user_id) if user_id and user_id.isdigit() else None,
         page=page,
         total=total,
+        total_pages=total_pages,
     )
 
 
@@ -139,7 +153,7 @@ def admin_notifications_create_page(request: Request, db = Depends(get_db), curr
     )
 
 @router.post("/admin/notifications/create")
-def admin_notifications_create(title: str = Form(...), content: str = Form(...), user_ids: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_notifications_create(title: str = Form(...), content: str = Form(...), user_ids: str = Form(""), send_email: int = Form(0), background_tasks: BackgroundTasks = None, db = Depends(get_db), current_user = Depends(get_current_user)):
     """发布通知：若未选择具体成员则广播。使用 batch_id 进行分组。"""
     require_admin(current_user)
     title_clean = (title or '').strip()
@@ -154,8 +168,18 @@ def admin_notifications_create(title: str = Form(...), content: str = Form(...),
     batch_id = f"b{int(datetime.now(TZ).timestamp())}_{uuid.uuid4().hex[:8]}"
     for u in target_users:
         db.add(Notification(user_id=u.id, type='system', title=title_clean, content=text, batch_id=batch_id))
+        if send_email and u.email:
+            if background_tasks is not None:
+                background_tasks.add_task(_bg_send_email, u.email, title_clean, text)
+            else:
+                # 没有 FastAPI 的 BackgroundTasks 注入时，使用线程后台发送，避免阻塞请求
+                try:
+                    import threading
+                    threading.Thread(target=_bg_send_email, args=(u.email, title_clean, text), daemon=True).start()
+                except Exception:
+                    pass
     db.commit()
-    return RedirectResponse(f"/admin/notifications?msg=已发布{len(target_users)}条", status_code=302)
+    return RedirectResponse(f"/admin/notifications?msg=已发布{len(target_users)}条" + ("(含邮件)" if send_email else ""), status_code=302)
 
 @router.get("/admin/notifications/{batch_id}", response_class=HTMLResponse)
 def admin_notifications_detail(batch_id: str, request: Request = None, db = Depends(get_db), current_user = Depends(get_current_user)):
@@ -344,18 +368,19 @@ def admin_delete_event_type(type_id: int, db = Depends(get_db), current_user = D
 
 
 @router.get("/admin/review", response_class=HTMLResponse)
-def admin_review_list(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_review_list(request: Request, page: int = 1, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
     # filters
     event_id = request.query_params.get("event_id")
     q = (request.query_params.get("q") or "").strip()
     status = (request.query_params.get("status") or "unreviewed").strip()  # default 显示未审核
-    sub_q = db.query(Submission).filter(Submission.is_deleted == False)
+    base_q = db.query(Submission).filter(Submission.is_deleted == False)
     if event_id and event_id.isdigit():
-        sub_q = sub_q.filter(Submission.event_id == int(event_id))
-    subs = sub_q.all()
-    rows = []
-    for s in subs:
+        base_q = base_q.filter(Submission.event_id == int(event_id))
+    # 先按时间排序取全量（便于基于“审核状态”的过滤），再进行内存分页
+    subs_all = base_q.order_by(Submission.created_at.desc()).all()
+    rows_all = []
+    for s in subs_all:
         if q and s.user and (q.lower() not in s.user.username.lower()):
             continue
         total_items = len(s.items)
@@ -368,13 +393,9 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
         # - 若不存在条目（活动没有题目等），只有设置了手动分数才视为已审核；否则为未审核。
         # - 业务变更：被驳回的提交也视为“已审核”；当成员重新编辑后会清除驳回标记并重新进入“未审核”。
         is_reviewed = getattr(s, 'rejected', False) or (total_items > 0 and pending == 0) or (total_items == 0 and manual_set)
-        if status == 'reviewed' and not is_reviewed:
-            continue
-        if status == 'unreviewed' and is_reviewed:
-            continue
         # 分数：仅非驳回且视为“已审核”的显示分数，否则为 None
         pts = compute_submission_points(s) if (is_reviewed and not getattr(s, 'rejected', False)) else None
-        rows.append({
+        rows_all.append({
             "sub_id": s.id,
             "created_at": s.created_at,
             "username": s.user.username if s.user else "—",
@@ -386,7 +407,25 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
             "reviewed": is_reviewed,
             "points": pts,
         })
-    rows.sort(key=lambda r: r["created_at"], reverse=True)
+    # 基于审核状态过滤
+    if status == 'reviewed':
+        rows_filtered = [r for r in rows_all if r['reviewed']]
+    elif status == 'unreviewed':
+        rows_filtered = [r for r in rows_all if not r['reviewed']]
+    elif status == 'all':
+        rows_filtered = rows_all
+    else:
+        # 兜底：未知状态按未审核处理
+        rows_filtered = [r for r in rows_all if not r['reviewed']]
+    # 排序与分页
+    rows_filtered.sort(key=lambda r: r["created_at"], reverse=True)
+    page_size = 10
+    page = max(1, int(page or 1))
+    total_subs = len(rows_filtered)
+    total_pages = (total_subs + page_size - 1) // page_size
+    start = (page - 1) * page_size
+    end = start + page_size
+    rows = rows_filtered[start:end]
     # 事件选择下拉按照与“活动管理”相同的优先级排序
     events = db.query(Event).filter(Event.is_deleted == False).all()
     now = datetime.now(TZ)
@@ -421,7 +460,7 @@ def admin_review_list(request: Request, db = Depends(get_db), current_user = Dep
 
     events.sort(key=sort_key)
     eid = int(event_id) if event_id and event_id.isdigit() else None
-    return render_template("admin_review.html", title="审核中心", current_user=current_user, rows=rows, events=events, event_id=eid, q=q, status=status)
+    return render_template("admin_review.html", title="审核中心", current_user=current_user, rows=rows, events=events, event_id=eid, q=q, status=status, page=page, total_pages=total_pages, total=total_subs)
 
 
 @router.get("/admin/review/{sub_id}", response_class=HTMLResponse)
@@ -505,7 +544,7 @@ def admin_delete_submission(sub_id: int, db = Depends(get_db), current_user = De
 
 
 @router.post("/admin/review/{sub_id}/reject")
-def admin_reject_submission(sub_id: int, reason: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_reject_submission(sub_id: int, reason: str = Form(""), background_tasks: BackgroundTasks = None, db = Depends(get_db), current_user = Depends(get_current_user)):
     """驳回整条提交：直接应用驳回。"""
     require_admin_or_reviewer(current_user)
     sub = db.get(Submission, sub_id)
@@ -531,8 +570,18 @@ def admin_reject_submission(sub_id: int, reason: str = Form(""), db = Depends(ge
         pass
     ch_part = (" · ".join(ch_names)) if ch_names else "提交"
     title = f"提交被驳回 - {event_name}"
-    content = f"你的 {event_name} {ch_part} 已被驳回。\n\n理由：\n{r}"
+    content = f"您的提交 {event_name} 已被驳回。\n\n理由：\n{r}"
     db.add(Notification(user_id=sub.user_id, type='rejection', title=title, content=content, related_id=sub.id))
+    # 邮件通知（同步，可失败）
+    if sub.user and sub.user.email:
+        if background_tasks is not None:
+            background_tasks.add_task(_bg_send_email, sub.user.email, title, content)
+        else:
+            try:
+                import threading
+                threading.Thread(target=_bg_send_email, args=(sub.user.email, title, content), daemon=True).start()
+            except Exception:
+                pass
     db.commit()
     return RedirectResponse(f"/admin/review/{sub_id}?msg=已驳回并发送通知", status_code=302)
 
@@ -550,7 +599,7 @@ def admin_reject_confirm(sub_id: int, request: Request, db = Depends(get_db), cu
 
 
 @router.post("/admin/review/{sub_id}/reject_apply")
-def admin_reject_apply(sub_id: int, reason: str = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_reject_apply(sub_id: int, reason: str = Form(...), background_tasks: BackgroundTasks = None, db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
     sub = db.get(Submission, sub_id)
     if not sub or sub.is_deleted:
@@ -577,8 +626,17 @@ def admin_reject_apply(sub_id: int, reason: str = Form(...), db = Depends(get_db
         pass
     ch_part = (" · ".join(ch_names)) if ch_names else "提交"
     title = f"提交被驳回 - {event_name}"
-    content = f"你的 {event_name} {ch_part} 已被驳回。\n\n理由：\n{reason_clean}"
+    content = f"您的提交 {event_name} 已被驳回。\n\n理由：\n{reason_clean}"
     db.add(Notification(user_id=sub.user_id, type='rejection', title=title, content=content, related_id=sub.id))
+    if sub.user and sub.user.email:
+        if background_tasks is not None:
+            background_tasks.add_task(_bg_send_email, sub.user.email, title, content)
+        else:
+            try:
+                import threading
+                threading.Thread(target=_bg_send_email, args=(sub.user.email, title, content), daemon=True).start()
+            except Exception:
+                pass
     db.commit()
     return RedirectResponse(f"/admin/review/{sub_id}?msg=已驳回并发送通知", status_code=302)
 
@@ -649,11 +707,11 @@ def admin_events(request: Request, db = Depends(get_db), current_user = Depends(
         return (-has_range, group, dist, e.id * -1)
 
     events.sort(key=sort_key)
-    return render_template("admin_events.html", title="活动管理", current_user=current_user, events=events, year=now.year, month=now.month, types=types)
+    return render_template("admin_events.html", title="比赛管理", current_user=current_user, events=events, year=now.year, month=now.month, types=types)
 
 
 @router.post("/admin/events/create")
-def admin_create_event(request: Request, name: str = Form(...), start: str = Form(""), end: str = Form(""), weight: float = Form(1.0), event_type_id: int = Form(None), is_reproduction: int = Form(0), allow_wp_only: int = Form(0), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_create_event(request: Request, name: str = Form(...), start: str = Form(""), end: str = Form(""), weight: float = Form(1.0), event_type_id: int = Form(None), is_reproduction: int = Form(0), allow_wp_only: int = Form(0), remark: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
 
     def parse_dt(s: str):
@@ -677,6 +735,7 @@ def admin_create_event(request: Request, name: str = Form(...), start: str = For
         is_active=True,
         allow_wp_only=bool(int(allow_wp_only)),
         event_type_id=int(event_type_id) if event_type_id else None,
+        remark=(remark or '').strip() or None,
     )
     db.add(evt)
     db.commit()
@@ -694,7 +753,7 @@ def admin_edit_event(event_id: int, request: Request, db = Depends(get_db), curr
 
 
 @router.post("/admin/events/{event_id}/edit")
-def admin_update_event(event_id: int, name: str = Form(...), start: str = Form(""), end: str = Form(""), weight: float = Form(1.0), event_type_id: int = Form(None), is_reproduction: int = Form(0), allow_wp_only: int = Form(0), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_update_event(event_id: int, name: str = Form(...), start: str = Form(""), end: str = Form(""), weight: float = Form(1.0), event_type_id: int = Form(None), is_reproduction: int = Form(0), allow_wp_only: int = Form(0), remark: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
 
     def parse_dt(s: str):
@@ -718,6 +777,7 @@ def admin_update_event(event_id: int, name: str = Form(...), start: str = Form("
     evt.is_reproduction = bool(int(is_reproduction))
     evt.allow_wp_only = bool(int(allow_wp_only))
     evt.event_type_id = int(event_type_id) if event_type_id else None
+    evt.remark = (remark or '').strip() or None
     db.commit()
     return RedirectResponse("/admin/events?msg=已保存", status_code=302)
 
@@ -801,7 +861,16 @@ def admin_event_challenges(event_id: int, request: Request, db = Depends(get_db)
     if q:
         ch_q = ch_q.filter(Challenge.name.contains(q))
     challenges = ch_q.all()
-    return render_template("admin_challenges.html", title="题目管理", current_user=current_user, event=event, challenges=challenges, categories=CATEGORIES, msg=request.query_params.get("msg"), q=q, cat=cat)
+    # 动态题目类别：Setting 表 challenge_categories（以逗号或换行分隔），无则使用默认常量
+    cats_setting = db.get(Setting, 'challenge_categories')
+    if cats_setting and cats_setting.value.strip():
+        import re
+        raw = cats_setting.value.strip()
+        parts = [p.strip() for p in re.split(r'[\n,]+', raw) if p.strip()]
+        categories = parts if parts else CATEGORIES
+    else:
+        categories = CATEGORIES
+    return render_template("admin_challenges.html", title="题目管理", current_user=current_user, event=event, challenges=challenges, categories=categories, msg=request.query_params.get("msg"), q=q, cat=cat)
 
 
 @router.post("/admin/events/{event_id}/challenges/add")
@@ -836,11 +905,13 @@ def admin_delete_challenge(event_id: int, ch_id: int, db = Depends(get_db), curr
 
 
 @router.post("/admin/events/{event_id}/challenges/{ch_id}/update")
-def admin_update_challenge(event_id: int, ch_id: int, base_score: int = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_update_challenge(event_id: int, ch_id: int, name: str = Form(...), category: str = Form(...), base_score: int = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin_or_reviewer(current_user)
     ch = db.get(Challenge, ch_id)
     if not ch or ch.event_id != event_id:
         raise HTTPException(404, "题目不存在")
+    ch.name = (name or '').strip() or ch.name
+    ch.category = (category or '').strip() or ch.category
     ch.base_score = int(base_score)
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}/challenges?msg=分值已更新", status_code=302)
@@ -938,6 +1009,105 @@ def admin_delete_announcement(ann_id: int, db = Depends(get_db), current_user = 
     ann.is_deleted = True
     db.commit()
     return RedirectResponse("/admin/announcements?msg=已移入垃圾箱", status_code=302)
+
+
+# 邮件配置管理
+@router.get("/admin/email", response_class=HTMLResponse)
+def admin_email_settings(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    def getv(k, default=''):
+        s = db.get(Setting, k)
+        return s.value if s else default
+    ctx = {
+        'email_enabled': (getv('email_enabled', '0') in ('1', 'true', 'True')),
+        'smtp_host': getv('smtp_host', ''),
+        'smtp_port': getv('smtp_port', '587'),
+        'smtp_user': getv('smtp_user', ''),
+        'smtp_password': getv('smtp_password', ''),
+        'smtp_from': getv('smtp_from', ''),
+    }
+    return render_template("admin_email.html", title="邮件配置", current_user=current_user, **ctx, msg=request.query_params.get('msg'))
+
+
+@router.post("/admin/email")
+def admin_email_settings_save(email_enabled: int = Form(0), smtp_host: str = Form(""), smtp_port: str = Form("587"), smtp_user: str = Form(""), smtp_password: str = Form(""), smtp_from: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    def setv(k, v):
+        s = db.get(Setting, k)
+        if s:
+            s.value = v
+        else:
+            db.add(Setting(key=k, value=v))
+    setv('email_enabled', '1' if int(email_enabled or 0) == 1 else '0')
+    setv('smtp_host', (smtp_host or '').strip())
+    setv('smtp_port', (smtp_port or '').strip() or '587')
+    setv('smtp_user', (smtp_user or '').strip())
+    setv('smtp_password', (smtp_password or '').strip())
+    setv('smtp_from', (smtp_from or '').strip())
+    db.commit()
+    return RedirectResponse("/admin/email?msg=已保存", status_code=302)
+
+
+@router.post("/admin/email/test")
+def admin_email_test(to: str = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+    """测试邮件：后台异步发送，不阻塞请求；仅做基本校验与配置检查。"""
+    require_admin(current_user)
+    addr = (to or '').strip()
+    import re, threading
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr):
+        return RedirectResponse("/admin/email?msg=测试地址格式不正确", status_code=302)
+    # 基本配置检查（不在此处发送）
+    def getv(k, default=''):
+        s = db.get(Setting, k)
+        return s.value if s else default
+    host = (getv('smtp_host') or '').strip()
+    user = (getv('smtp_user') or '').strip()
+    from_addr = (getv('smtp_from') or user or '').strip()
+    if not host or not from_addr:
+        return RedirectResponse("/admin/email?msg=主机或发件人未配置", status_code=302)
+    # 使用统一的后台发送方法，在线程内创建独立的 Session，避免跨线程复用 db
+    def _bg():
+        try:
+            _bg_send_email(addr, "[CloudEver] 测试邮件", "这是一封用于验证 SMTP 配置的测试邮件。")
+        except Exception:
+            pass
+    threading.Thread(target=_bg, daemon=True).start()
+    return RedirectResponse("/admin/email?msg=测试邮件任务已提交(稍后查收)", status_code=302)
+
+
+# 题目类别动态管理
+@router.get("/admin/categories", response_class=HTMLResponse)
+def admin_categories_page(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    s = db.get(Setting, 'challenge_categories')
+    raw = s.value if s else ''
+    # 展示为每行一个
+    if raw and ',' in raw and '\n' not in raw:
+        # 兼容旧格式用逗号分隔：全部替换成换行
+        raw_display = '\n'.join([p.strip() for p in raw.split(',') if p.strip()])
+    else:
+        raw_display = raw or ''
+    return render_template("admin_categories.html", title="题目类别", current_user=current_user, raw_categories=raw_display, msg=request.query_params.get('msg'))
+
+
+@router.post("/admin/categories")
+def admin_categories_save(content: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    import re
+    parts = [p.strip() for p in re.split(r'[\n,]+', (content or '').strip()) if p.strip()]
+    # 去重保持顺序
+    seen = set(); ordered = []
+    for p in parts:
+        if p not in seen:
+            seen.add(p); ordered.append(p)
+    value = ','.join(ordered)
+    s = db.get(Setting, 'challenge_categories')
+    if s:
+        s.value = value
+    else:
+        db.add(Setting(key='challenge_categories', value=value))
+    db.commit()
+    return RedirectResponse("/admin/categories?msg=已保存", status_code=302)
 
 
 # 规则编辑
@@ -1197,25 +1367,39 @@ def admin_delete_adjustment(adj_id: int, db = Depends(get_db), current_user = De
 
 
 @router.get("/admin/users", response_class=HTMLResponse)
-def admin_users(request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_users(request: Request, page: int = 1, db = Depends(get_db), current_user = Depends(get_current_user)):
     # 审核员可浏览成员列表（只读），管理员可编辑
     require_admin_or_reviewer(current_user)
-    users = db.query(User).filter(User.is_deleted == False).order_by(User.username.asc()).all()
-    return render_template("admin_users.html", title="成员管理", current_user=current_user, users=users)
+    page_size = 50
+    page = max(1, int(page or 1))
+    base_q = db.query(User).filter(User.is_deleted == False).order_by(User.username.asc())
+    total = base_q.count()
+    users = base_q.offset((page-1)*page_size).limit(page_size).all()
+    total_pages = (total + page_size - 1) // page_size
+    return render_template("admin_users.html", title="成员管理", current_user=current_user, users=users, page=page, total_pages=total_pages, total=total)
 
 
 @router.get("/admin/users/{uid}", response_class=HTMLResponse)
-def admin_user_detail(uid: int, request: Request, db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_user_detail(uid: int, request: Request, page: int = 1, db = Depends(get_db), current_user = Depends(get_current_user)):
     # 审核员可浏览成员详情（只读），管理员可编辑
     require_admin_or_reviewer(current_user)
     u = db.get(User, uid)
     if not u or u.is_deleted:
         raise HTTPException(404, "用户不存在")
-    subs = db.query(Submission).filter(Submission.user_id == uid).order_by(Submission.created_at.desc()).all()
-    total_items = sum(len(s.items) for s in subs)
-    approved = sum(1 for s in subs for it in s.items if it.approved and not it.revoked)
-    pending = sum(1 for s in subs for it in s.items if not it.approved)
-    revoked = sum(1 for s in subs for it in s.items if it.revoked)
+    page_size = 10
+    page = max(1, int(page or 1))
+    # 全量查询（不分页）用于统计
+    all_subs_q = db.query(Submission).filter(Submission.user_id == uid, Submission.is_deleted == False)
+    total_subs = all_subs_q.count()
+    all_subs = all_subs_q.all()
+    # 全量统计（不随分页变化）
+    total_items = sum(len(s.items) for s in all_subs)
+    approved = sum(1 for s in all_subs for it in s.items if it.approved and not it.revoked)
+    pending = sum(1 for s in all_subs for it in s.items if not it.approved)
+    revoked = sum(1 for s in all_subs for it in s.items if it.revoked)
+    # 当前页数据
+    base_q = db.query(Submission).filter(Submission.user_id == uid, Submission.is_deleted == False).order_by(Submission.created_at.desc())
+    subs = base_q.offset((page-1)*page_size).limit(page_size).all()
     rows = []
     for s in subs:
         total_items_s = len(s.items)
@@ -1244,7 +1428,8 @@ def admin_user_detail(uid: int, request: Request, db = Depends(get_db), current_
             "ok": ok_s,
             "rev": rev_s,
         })
-    return render_template("admin_user_detail.html", title=f"成员详情 — {u.username}", current_user=current_user, user=u, subs=subs, total_items=total_items, approved=approved, pending=pending, revoked=revoked, rows=rows)
+    total_pages = (total_subs + page_size - 1) // page_size
+    return render_template("admin_user_detail.html", title=f"成员详情 — {u.username}", current_user=current_user, user=u, subs=subs, total_items=total_items, approved=approved, pending=pending, revoked=revoked, rows=rows, page=page, total_pages=total_pages, total=total_subs)
 
 
 @router.post("/admin/users/{uid}/password")
@@ -1303,15 +1488,32 @@ async def admin_set_user_avatar(uid: int, file: UploadFile = File(...), db = Dep
 
 
 @router.post("/admin/users/{uid}/update")
-def admin_update_user(uid: int, role: str = Form(...), team_type: str = Form(...), db = Depends(get_db), current_user = Depends(get_current_user)):
+def admin_update_user(uid: int, role: str = Form(...), team_type: str = Form(...), show_on_leaderboard: int = Form(None), db = Depends(get_db), current_user = Depends(get_current_user)):
     require_admin(current_user)
     u = db.get(User, uid)
     if not u or u.is_deleted:
         raise HTTPException(404, "用户不存在")
     u.role = role if role in ("member", "reviewer", "admin") else u.role
     u.team_type = team_type if team_type in ("main", "sub") else u.team_type
+    if show_on_leaderboard is not None:
+        u.show_on_leaderboard = bool(int(show_on_leaderboard))
     db.commit()
     return RedirectResponse("/admin/users?msg=已更新", status_code=302)
+
+@router.post("/admin/users/{uid}/email")
+def admin_set_user_email(uid: int, email: str = Form(""), db = Depends(get_db), current_user = Depends(get_current_user)):
+    require_admin(current_user)
+    u = db.get(User, uid)
+    if not u or u.is_deleted:
+        raise HTTPException(404, "用户不存在")
+    e = (email or '').strip()
+    if e:
+        import re
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e):
+            return RedirectResponse(f"/admin/users/{uid}?msg=邮箱格式不正确", status_code=302)
+    u.email = e or None
+    db.commit()
+    return RedirectResponse(f"/admin/users/{uid}?msg=邮箱已更新", status_code=302)
 
 
 @router.post("/admin/users/{uid}/delete")

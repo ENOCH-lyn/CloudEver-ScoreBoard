@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row" style="align-items:flex-start">
+  {% include 'partials/admin_side_nav.html' %}
+  <main style="flex:1">
+    <div class="card">
+      <h2>邮件配置</h2>
+      <p class="muted">配置 SMTP 服务用于向成员发送通知邮件（例如驳回提醒、群发通知）。</p>
+  <form method="post" action="/admin/email" class="grid" style="gap:12px">
+        <div>
+          <label><input type="checkbox" name="email_enabled" value="1" {% if email_enabled %}checked{% endif %}/> 启用邮件发送</label>
+        </div>
+        <div class="row">
+          <label class="label-inline" style="min-width:120px">SMTP Host</label>
+          <input name="smtp_host" value="{{ smtp_host }}" placeholder="smtp.example.com" style="max-width:320px" />
+        </div>
+        <div class="row">
+          <label class="label-inline" style="min-width:120px">SMTP Port</label>
+          <input name="smtp_port" value="{{ smtp_port }}" placeholder="587" style="max-width:200px" />
+        </div>
+        <div class="row">
+          <label class="label-inline" style="min-width:120px">用户名</label>
+          <input name="smtp_user" value="{{ smtp_user }}" placeholder="user@example.com" style="max-width:320px" />
+        </div>
+        <div class="row">
+          <label class="label-inline" style="min-width:120px">密码/授权码</label>
+          <input name="smtp_password" value="{{ smtp_password }}" type="password" placeholder="••••••••" style="max-width:320px" />
+        </div>
+        <div class="row">
+          <label class="label-inline" style="min-width:120px">发件人地址</label>
+          <input name="smtp_from" value="{{ smtp_from }}" placeholder="noreply@example.com" style="max-width:320px" />
+        </div>
+        <div style="margin-top:12px" class="row" style="gap:12px">
+          <button class="btn" type="submit">保存配置</button>
+        </div>
+      </form>
+      <p class="muted" style="margin-top:10px">说明：若未指定发件人地址，将使用用户名作为发件人。</p>
+      <h3 style="margin-top:26px">发送测试邮件</h3>
+      <form method="post" action="/admin/email/test" class="row" style="align-items:flex-end; gap:12px">
+        <div style="flex:1; max-width:320px">
+          <label class="label-inline" for="testAddr">测试收件地址</label>
+          <input id="testAddr" name="to" type="email" placeholder="test@example.com" required />
+        </div>
+        <button class="btn secondary" type="submit">发送测试</button>
+      </form>
+    </div>
+  </main>
+</div>
+{% endblock %}

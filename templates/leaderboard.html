@@ -20,7 +20,7 @@
     </ul>
   </div>
   <div class="card">
-    <div class="row"><div class="kpi">进行中活动</div><span class="pill">{{ events|length }} 个</span></div>
+  <div class="row"><div class="kpi">进行中</div><span class="pill">{{ events|length }} 个</span></div>
   <ul class="list list-scroll">
       {% for e in events %}
         <li class="list-item">
@@ -33,7 +33,7 @@
           </a>
         </li>
       {% else %}
-        <li class="muted">暂无活动</li>
+  <li class="muted">暂无比赛</li>
       {% endfor %}
     </ul>
   </div>

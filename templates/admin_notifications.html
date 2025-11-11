@@ -8,7 +8,7 @@
         <h2 style="margin:0">通知管理</h2>
         <a class="btn" href="/admin/notifications/create">发布新通知</a>
       </div>
-      <p class="muted">支持筛选/分页，避免一次性加载过多数据。</p>
+      <p class="muted">支持筛选，编辑，删除通知</p>
       <form class="row" method="get" action="/admin/notifications" style="margin-top:6px">
         <input name="q" placeholder="内容包含..." value="{{ q or '' }}" style="max-width:240px" />
         <select name="user_id" style="max-width:200px">
@@ -52,16 +52,10 @@
         {% endfor %}
         </tbody>
       </table>
+      {% from 'partials/pagination.html' import pager %}
       <div class="row" style="justify-content:space-between; margin-top:10px">
-        {% set per_page = 10 %}
-        {% set total_pages = ((total + per_page - 1) // per_page) if total else 1 %}
         <div class="muted">第 {{ page }} / {{ total_pages }} 页 · 共 {{ total }} 条</div>
-        <div class="row">
-          {% set prev = page-1 %}
-          {% set next = page+1 %}
-          {% if page > 1 %}<a class="btn secondary" href="/admin/notifications?page={{ prev }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if q %}&q={{ q }}{% endif %}">上一页</a>{% endif %}
-          {% if page * per_page < total %}<a class="btn" style="margin-left:8px" href="/admin/notifications?page={{ next }}{% if user_id %}&user_id={{ user_id }}{% endif %}{% if q %}&q={{ q }}{% endif %}">下一页</a>{% endif %}
-        </div>
+        {{ pager('/admin/notifications', page, total_pages, (user_id and ('user_id=' ~ user_id) or '') ~ (q and ((user_id and '&' or '') ~ 'q=' ~ q) or '')) }}
       </div>
     </div>
   </main>

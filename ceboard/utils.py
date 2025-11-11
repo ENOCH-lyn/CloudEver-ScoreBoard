@@ -7,7 +7,11 @@ except Exception:  # bleach not installed in current env
     bleach = None
 
 from .config import TZ
-from .models import Submission
+from html import escape
+from .models import Submission, User
+from sqlalchemy import or_
+import smtplib
+from email.message import EmailMessage
 
 
 def now_tokyo() -> datetime:
@@ -60,9 +64,10 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
     subs_month = (
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
-        .filter(User.team_type == team_type)
-        .filter(User.role == 'member')
-        .filter(User.is_deleted == False)
+    .filter(User.team_type == team_type)
+    .filter(User.role == 'member')
+    .filter(User.is_deleted == False)
+    .filter(or_(User.show_on_leaderboard == True, User.show_on_leaderboard == None))
         .filter(Submission.is_deleted == False)
         .filter(Submission.created_at >= start, Submission.created_at < end)
         .all()
@@ -70,9 +75,10 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
     subs_total = (
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
-        .filter(User.team_type == team_type)
-        .filter(User.role == 'member')
-        .filter(User.is_deleted == False)
+    .filter(User.team_type == team_type)
+    .filter(User.role == 'member')
+    .filter(User.is_deleted == False)
+    .filter(or_(User.show_on_leaderboard == True, User.show_on_leaderboard == None))
         .filter(Submission.is_deleted == False)
         .all()
     )
@@ -80,9 +86,10 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
     subs_prev = (
         db.query(Submission)
         .join(User, Submission.user_id == User.id)
-        .filter(User.team_type == team_type)
-        .filter(User.role == 'member')
-        .filter(User.is_deleted == False)
+    .filter(User.team_type == team_type)
+    .filter(User.role == 'member')
+    .filter(User.is_deleted == False)
+    .filter(or_(User.show_on_leaderboard == True, User.show_on_leaderboard == None))
         .filter(Submission.is_deleted == False)
         .filter(Submission.created_at >= prev_start, Submission.created_at < prev_end)
         .all()
@@ -115,8 +122,8 @@ def leaderboard_month_and_total(db, year: int, month: int, team_type: str) -> Li
     adjs_month = (
         db.query(PointAdjustment)
         .join(User, PointAdjustment.user_id == User.id)
-        .filter(User.team_type == team_type)
-        .filter(User.role == 'member')
+    .filter(User.team_type == team_type)
+    .filter(User.role == 'member')
         .filter(PointAdjustment.is_deleted == False)
         .filter(PointAdjustment.year == year, PointAdjustment.month == month)
         .all()
@@ -242,7 +249,7 @@ def md_to_html(md_text: Optional[str]) -> str:
         'a', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'blockquote',
         'pre', 'code', 'hr', 'br',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'table', 'thead', 'tbody', 'tr', 'th', 'td'
+        'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'
     ])
     allowed_attrs = {
         'a': ['href', 'title', 'target', 'rel'],
@@ -251,6 +258,7 @@ def md_to_html(md_text: Optional[str]) -> str:
         # keep code/class if using future highlighters
         'code': ['class'],
         'pre': ['class'],
+        'img': ['src', 'alt', 'title', 'width', 'height'],
     }
     cleaned = bleach.clean(
         raw_html,
@@ -262,3 +270,85 @@ def md_to_html(md_text: Optional[str]) -> str:
     # Optional: ensure external links have rel noopener
     # We avoid linkify to keep code blocks intact.
     return cleaned
+
+
+def _wrap_email_html(subject: str, body_md: str) -> str:
+        body_html = md_to_html(body_md or "")
+        # 极简风格 HTML 模板
+        return f"""
+<!doctype html>
+<html>
+<head>
+    <meta charset='utf-8'/>
+    <meta name='viewport' content='width=device-width, initial-scale=1'/>
+    <title>{escape(subject or '通知')}</title>
+    <style>
+        body{{background:#f8fafc; margin:0; padding:24px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans CJK SC','Source Han Sans SC',sans-serif; color:#0f172a;}}
+        .card{{max-width:680px; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:24px;}}
+        h1{{font-size:18px; margin:0 0 12px;}}
+        .content p{{line-height:1.65; margin:10px 0;}}
+        .content code, .content pre{{background:#0b10211a; border-radius:8px; padding:2px 6px;}}
+        .footer{{margin-top:18px; color:#64748b; font-size:12px;}}
+        table{{border-collapse:collapse}}
+        th,td{{border:1px solid #e5e7eb; padding:6px 8px;}}
+    </style>
+    </head>
+    <body>
+        <div class='card'>
+            <h1>{escape(subject or '通知')}</h1>
+            <div class='content'>{body_html}</div>
+            <div class='footer'>此邮件由 CloudEver 自动发送</div>
+        </div>
+    </body>
+</html>
+"""
+
+
+def send_email_sync(db, to_addr: str, subject: str, body: str) -> bool:
+    """Send email synchronously using SMTP settings stored in Setting table.
+    Settings keys:
+      - email_enabled: '1' or '0'
+      - smtp_host, smtp_port, smtp_user, smtp_password, smtp_from
+    Returns True if sent, False otherwise (silently catches errors).
+    """
+    try:
+        from .models import Setting
+        get = lambda k: (db.get(Setting, k).value if db.get(Setting, k) else None)
+        enabled = (get('email_enabled') or '0').strip()
+        if enabled not in ('1', 'true', 'True'):
+            return False
+        host = (get('smtp_host') or '').strip()
+        port_str = (get('smtp_port') or '').strip() or '587'
+        user = (get('smtp_user') or '').strip()
+        pwd = (get('smtp_password') or '').strip()
+        from_addr = (get('smtp_from') or user or '').strip()
+        if not host or not from_addr or not to_addr:
+            return False
+        try:
+            port = int(port_str)
+        except Exception:
+            port = 587
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = from_addr
+        msg['To'] = to_addr
+        # 文本 + HTML（Markdown 渲染）
+        plain = (body or '').strip()
+        html = _wrap_email_html(subject, body or '')
+        msg.set_content(plain or subject or '')
+        msg.add_alternative(html, subtype='html')
+        with smtplib.SMTP(host, port, timeout=15) as s:
+            try:
+                s.starttls()
+            except Exception:
+                pass
+            if user:
+                try:
+                    s.login(user, pwd)
+                except Exception:
+                    # allow anonymous if login fails
+                    pass
+            s.send_message(msg)
+        return True
+    except Exception:
+        return False

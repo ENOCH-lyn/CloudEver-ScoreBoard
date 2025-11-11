@@ -117,6 +117,9 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
         count_ok = sum(1 for it in s.items if it.approved and not it.revoked)
         count_pending = sum(1 for it in s.items if not it.approved)
         count_revoked = sum(1 for it in s.items if it.revoked)
+        manual_set = (getattr(s, 'manual_points', None) is not None)
+        reviewed = getattr(s, 'rejected', False) or (len(s.items) > 0 and count_pending == 0) or (len(s.items) == 0 and manual_set)
+        pts = compute_submission_points(s) if (reviewed and not getattr(s, 'rejected', False)) else None
         # 展示本次提交涉及的题目名称（不暴露 WP）
         ch_names = []
         for it in s.items:
@@ -132,7 +135,8 @@ def user_profile(uid: int, request: Request, year: Optional[int] = None, month: 
             "count_ok": count_ok,
             "count_pending": count_pending,
             "count_revoked": count_revoked,
-            "points": compute_submission_points(s),
+            "points": pts,
+            "reviewed": reviewed,
             "wp_url": s.wp_url,
             "challenges": ch_names,
             "rejected": getattr(s, 'rejected', False),

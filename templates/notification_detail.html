@@ -11,7 +11,7 @@
   {% if n.type == 'rejection' and sub %}
     <div class="md" style="margin-top:10px">
       <strong>关联提交：</strong>
-      <div>活动：{{ event_name or '—' }}</div>
+  <div>比赛：{{ event_name or '—' }}</div>
       {% if ch_names and ch_names|length>0 %}
         <div>涉及题目：{{ ', '.join(ch_names) }}</div>
       {% endif %}

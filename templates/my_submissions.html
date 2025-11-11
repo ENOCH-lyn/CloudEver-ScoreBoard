@@ -5,7 +5,7 @@
   <table class="table-cards">
     <thead>
       <tr>
-        <th>ID</th><th>时间</th><th>活动</th><th>积分</th><th>状态</th><th>已通过</th><th>待审</th><th>被撤销</th><th>操作</th>
+  <th>ID</th><th>时间</th><th>比赛</th><th>积分</th><th>状态</th><th>已通过</th><th>待审</th><th>被撤销</th><th>操作</th>
       </tr>
     </thead>
     <tbody>
@@ -14,13 +14,13 @@
         <td>#{{ r.id }}</td>
         <td>{{ r.created_at }}</td>
         <td>{{ r.event_name }}</td>
-        <td>{{ '%.2f' % r.points }}</td>
+  <td>{% if r.points is not none %}{{ '%.2f' % r.points }}{% else %}-{% endif %}</td>
         <td>
           {% if r.rejected %}<span class="status rev">已驳回</span>
           {% else %}
-            {% if r.pending_items > 0 %}<span class="status pending">待审</span>
-            {% elif r.ok_items > 0 or r.reviewed %}<span class="status ok">已计分</span>
-            {% else %}<span class="muted">—</span>{% endif %}
+            {% if r.pending_items > 0 %}<span class="status pending">未审核</span>
+            {% elif r.reviewed %}<span class="status ok">已审核</span>
+            {% else %}<span class="status pending">未审核</span>{% endif %}
           {% endif %}
         </td>
         <td>{{ r.ok_items }}</td>
@@ -38,5 +38,7 @@
     {% endfor %}
     </tbody>
   </table>
+  {% from 'partials/pagination.html' import pager %}
+  {{ pager('/my/submissions', page, total_pages) }}
 </div>
 {% endblock %}

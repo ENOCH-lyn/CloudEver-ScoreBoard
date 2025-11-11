@@ -141,6 +141,9 @@
   .list-scroll-lg{max-height:360px}
 
   .avatar{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); object-fit:cover; vertical-align:middle}
+  /* 导航小尺寸首字母占位 */
+  .avatar-initial-sm{width:36px; height:36px; border-radius:999px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:800; color:#1f2937; background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
+  /* 大尺寸的首字母占位（用于用户详情页/个人页，不用于导航） */
   .avatar-initial{width:88px; height:88px; border-radius:999px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:800; color:#1f2937; background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
     .user-menu{position:relative}
   .user-trigger{display:flex; align-items:center; gap:8px; padding:6px; border-radius:999px; cursor:pointer}
@@ -186,7 +189,8 @@
     .wrap{padding:14px 12px}
     .card{padding:14px}
     .kpi{font-size:22px}
-    .hamburger{display:inline-flex}
+    /* 将移动端菜单按钮尽可能居中到手机屏幕中部 */
+    .hamburger{display:inline-flex; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2}
     header .nav{display:none; position:absolute; top:54px; left:0; right:0; background:var(--surface); border-bottom:1px solid var(--border); box-shadow: var(--shadow); flex-direction:column; padding:10px 12px}
     header .nav.open{display:flex}
     header .nav a{padding:10px 4px; margin:0}
@@ -226,15 +230,15 @@
 </head>
 <body>
   <header>
-    <div class="brand">CloudEver <small>ScoreBoard</small></div>
+    <div class="brand">CloudEver</div>
   <button class="hamburger" id="mobileMenuBtn" aria-label="打开菜单"><span></span></button>
   <div class="nav" id="mainNav">
   <a href="/">积分榜</a>
       <a href="/rules">战队规则</a>
       <a href="/submit">提交成绩</a>
       {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
-        <a href="/admin/review">审核</a>
-        <a href="/admin/events">活动</a>
+  <a href="/admin/review">审核</a>
+  <a href="/admin/events">比赛</a>
       {% endif %}
       {% if current_user and (current_user.role == 'admin' or current_user.role == 'reviewer') %}
         <a href="/admin/users">成员</a>
@@ -243,13 +247,17 @@
     <div style="margin-left:auto">
       {% if current_user %}
         <div class="user-menu" id="userMenu">
-          <div class="user-trigger" id="userTrigger" style="position:relative">
-            {% if avatar_url %}
-              <img class="avatar" src="{{ avatar_url }}" alt="avatar" />
-              {% if unread_count and unread_count > 0 %}
-                <span style="position:absolute; top:4px; right:4px; width:10px; height:10px; background:#e11d48; border:2px solid #fff; border-radius:999px"></span>
+          <div class="user-trigger" id="userTrigger" style="position:relative;">
+            <div style="position:relative; display:inline-block">
+              {% if avatar_url %}
+                <img class="avatar" src="{{ avatar_url }}" alt="avatar" />
+              {% else %}
+                <div class="avatar-initial-sm">{{ (current_user.username[:1] or '?')|upper }}</div>
               {% endif %}
-            {% endif %}
+              {% if unread_count and unread_count > 0 %}
+                <span style="position:absolute; top:0; right:0; width:10px; height:10px; background:#e11d48; border:2px solid #fff; border-radius:999px"></span>
+              {% endif %}
+            </div>
             <span class="muted" style="font-weight:600">{{ current_user.username }}</span>
           </div>
           <div class="menu" id="userDropdown" style="min-width:220px">

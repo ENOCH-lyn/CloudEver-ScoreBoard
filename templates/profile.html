@@ -35,6 +35,15 @@
     </form>
     {% endif %}
   </div>
+  <div class="card">
+    <h2>邮箱</h2>
+    <p class="muted">用于接收系统通知邮件（可选）。</p>
+    <form method="post" action="/profile/email" class="row">
+      <label class="label-inline" for="emailInput">邮箱</label>
+      <input id="emailInput" name="email" type="email" value="{{ current_user.email or '' }}" placeholder="you@example.com" style="max-width:320px" />
+      <button class="btn" type="submit">保存邮箱</button>
+    </form>
+  </div>
 </div>
 <script>
   const chooseBtn = document.getElementById('chooseAvatarBtn');
